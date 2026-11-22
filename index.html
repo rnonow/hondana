@@ -225,6 +225,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .sw{display:block;width:56px;height:40px;border-radius:4px;background:linear-gradient(180deg,var(--back) 0 70%,var(--woodhi) 70% 78%,var(--wood) 78%);border:4px solid var(--wood)}
 .more.dot,#ioBtn.dot{position:relative}.more.dot::after,#ioBtn.dot::after{content:"";position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--acc)}
 .actrow{display:flex;align-items:center;gap:10px}.actrow label{flex:none;width:6em;margin:0}.actrow select{flex:1}
+#case .sname{display:none}
 </style>
 </head>
 <body>
@@ -236,7 +237,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <div class="menu" id="caseMenu" hidden>
       <button id="caseNew">本棚を追加</button>
       <button id="caseRen">名前変更</button>
-      <button id="shelfNew">段を追加</button>
+      <button id="shelfNew">段を追加</button><button id="shelfDel">段を減らす</button>
       <button id="caseDesign">デザイン</button>
       <button id="caseDel">本棚を削除</button>
       <button id="shotBtn">画像で保存</button>
@@ -695,6 +696,7 @@ const DESIGNS={walnut:'ウォルナット',oak:'オーク',white:'白',black:'�
 $('#caseDesign').onclick=()=>{const c=curCase();openPanel(`<button class="x" data-close>閉じる</button><h2>本棚のデザイン</h2><div class="dsgn" id="dsList">${Object.entries(DESIGNS).map(([k,v])=>`<button data-d="${k}" aria-pressed="${(c.theme||'walnut')===k}"><i class="sw" data-theme="${k}"></i>${v}</button>`).join('')}</div>`);
   $('#dsList').onclick=e=>{const k=e.target.closest('[data-d]')?.dataset.d;if(!k)return;if(k==='walnut')delete c.theme;else c.theme=k;save();renderShelf();for(const x of $('#dsList').children)x.setAttribute('aria-pressed',x.dataset.d===k)}};
 $('#caseRen').onclick=()=>ask('本棚の名前',curCase().name,v=>{curCase().name=v;save();renderShelf()});
+$('#shelfDel').onclick=()=>{const c=curCase();if(c.shelves.length<2)return toast('段は最低1つ必要です');const s=c.shelves.pop();c.shelves[c.shelves.length-1].books.push(...s.books);save();renderShelf();toast(s.books.length?`一番下の段を減らし、${s.books.length}冊を上の段の最後に移しました`:'一番下の段を減らしました')};
 $('#shelfNew').onclick=()=>{const c=curCase();c.shelves.push({id:uid(),name:(c.shelves.length+1)+'段目',books:[]});save();renderShelf()};
 $('#caseDel').onclick=()=>{if(S.cases.length<2)return toast('本棚は最低1つ必要です');const c=curCase();
   confirmP(`「${c.name}」を削除します。並んでいた本は、ほかの本棚の一番下の段に移ります。`,()=>{const mv=c.shelves.flatMap(s=>s.books);S.cases=S.cases.filter(x=>x!==c);S.cur=S.cases[0].id;bottomList().push(...mv);save();renderShelf()})};
@@ -1166,7 +1168,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v76';let updAt=0;
+const APP_V='hondana-v77';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
