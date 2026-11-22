@@ -124,6 +124,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .cchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.cchip{width:38px;height:38px;min-height:0;padding:0;border-radius:50%;background:var(--c);color:var(--t);border:2px solid #0002;font-weight:700}.cchip.on{outline:3px solid var(--acc);outline-offset:2px}
 #seg{position:sticky;bottom:12px;z-index:29;box-shadow:0 6px 20px #0002}#v-news{display:flex;flex-direction:column}#v-news[hidden]{display:none}#seg{order:9;margin:16px 0 0}
 .filters.ctr{flex-direction:column;align-items:center;gap:6px;text-align:center}.filters.ctr .pri{min-width:180px}
+#nlast,#rlast{display:none!important}#v-news .filters.ctr .pri{min-height:38px;padding:6px 18px;font-size:15px}#v-news .pbar{margin:6px 0 2px}#rmsg,#nmsg{margin:4px 0 2px;min-height:0;text-align:center;font-size:12.5px}#v-news .seg.sub{margin-bottom:8px}#v-news .rel{padding:8px 0;gap:10px}
 .seg{display:flex;gap:4px;background:var(--line);border-radius:12px;padding:4px;margin:0 0 14px}.seg button{flex:1;border:0;background:none;border-radius:9px;min-height:40px;font-weight:700}
 .seg.sub{margin:0 0 10px;background:none;border:1px solid var(--line)}.seg.sub button{min-height:36px;font-size:14px}.seg small{font-weight:400;opacity:.7}
 .seg button[aria-pressed=true]{background:var(--panel);box-shadow:0 1px 4px #0002}
@@ -912,7 +913,7 @@ function renderReco(){fitList();const R0=RECO_RUN&&RECO_TMP?RECO_TMP:S.reco;cons
   const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));const all=(R0?.items||[]).filter(x=>!owned.has(x.isbn)&&!(S.mute||[]).includes(x.key));
   const cat=S.rcat||'book';$('#rcat').innerHTML=RCAT.map(([k,n])=>{const c=all.filter(x=>x.cat===k).length;return `<button data-c="${k}" aria-pressed="${k===cat}">${n}${c?`<small> ${c}</small>`:''}</button>`}).join('');
   const items=all.filter(x=>x.cat===cat);
-  if(!RECO_RUN&&R0){m.className='msg'+(R0.fail?' err':'');m.textContent=R0.fail?'つながりませんでした。少し待って「探し直す」を押してください':items.length?`${items.length}冊あります`:'おすすめは見つかりませんでした'}
+  if(!RECO_RUN&&R0){m.className='msg'+(R0.fail?' err':'');m.textContent=R0.fail?'つながりませんでした。少し待って「探し直す」を押してください':items.length?'':'この種類のおすすめは見つかりませんでした'}
   $('#reco').innerHTML=items.map(n=>`<div class="rel">${faceHTML(n,100)}<div><b>${esc(n.title)}</b><div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div>
     <div class="d">${esc(n.label)}　<button class="chip" style="min-height:30px;padding:2px 10px" data-rmute="${esc(n.key)}">この著者は出さない</button></div></div>
     <button class="wish" data-ri="${esc(n.isbn)}">読みたい</button></div>`).join('')}
@@ -1021,7 +1022,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v59';let updAt=0;
+const APP_V='hondana-v60';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
