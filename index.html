@@ -229,7 +229,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <p class="note">持っている本の著者の、まだ持っていない本です（国立国会図書館サーチ）。3日に1回、自動で探し直します。</p>
       <div class="filters" style="align-items:center"><button class="pri" id="rcheck">探し直す</button><span class="note" id="rlast" style="margin:0"></span></div>
       <p class="msg" id="rmsg"></p><div id="reco"></div></div>
-    <div id="pRank" hidden><p class="msg" id="rankMsg">ランキングは準備中です。</p><div id="rank"></div></div>
+    <div id="pRank" hidden><div class="seg" id="rgen" style="margin-bottom:10px"></div><p class="msg" id="rankMsg"></p><div id="rankSet"></div><div id="rank"></div></div>
     <div id="pNew">
     <h3>新刊チェック</h3>
     <p class="note">本棚にある本のシリーズと著者から、最近90日に出た本と発売予定の本を自動で探します（国立国会図書館サーチ）。アプリを開いた時に半日に1回確認します。</p>
@@ -795,7 +795,7 @@ $('#news').onclick=e=>{const items=S.news?.items||[];const today=new Date().toIS
   const b=e.target.closest('[data-n]');if(!b)return;const n=items[+b.dataset.n];const{key,label,...rest}=n;addBook({...rest,status:n.pubdate>today?'wish':'unread'})};
 /* ---- 選書：切り替え ---- */
 function showSeg(k){S.seg=k;for(const b of document.querySelectorAll('#seg button'))b.setAttribute('aria-pressed',b.dataset.p===k);
-  $('#pNew').hidden=k!=='new';$('#pReco').hidden=k!=='reco';$('#pRank').hidden=k!=='rank';if(k==='reco'&&recoStale())checkReco()}
+  $('#pNew').hidden=k!=='new';$('#pReco').hidden=k!=='reco';$('#pRank').hidden=k!=='rank';if(k==='reco'&&recoStale())checkReco();if(k==='rank')loadRank(S.rgen||'001')}
 $('#seg').onclick=e=>{const b=e.target.closest('[data-p]');if(b){showSeg(b.dataset.p);save()}};
 /* 「読みたい」に直接追加（読みたい棚へ入る） */
 function addWish(n){const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));if(n.isbn&&owned.has(n.isbn))return toast('もう登録されています');
@@ -825,6 +825,37 @@ function renderReco(){const R0=S.reco;const m=$('#rmsg');$('#rlast').textContent
 $('#reco').onclick=e=>{const mu=e.target.closest('[data-rmute]');if(mu){S.mute=[...new Set([...(S.mute||[]),mu.dataset.rmute])];save();renderReco();toast('この著者は出しません');return}
   const b=e.target.closest('[data-ri]');if(!b)return;const n=(S.reco?.items||[]).find(x=>x.isbn===b.dataset.ri);if(n){const{key,label,...rest}=n;addWish(rest);renderReco()}};
 $('#rcheck').onclick=()=>checkReco();
+/* ---- ランキング：楽天ブックス書籍検索API（売れている順）。IDとアクセスキーはこの端末の中だけに保存する ---- */
+const RGEN=[['001','総合'],['001001','漫画'],['001004','小説']];let RANK_RUN=false;
+function jsonp(url){return new Promise((ok,ng)=>{const cb='rk'+Date.now()+Math.floor(Math.random()*1e4);const sc=document.createElement('script');
+  const t=setTimeout(()=>{delete window[cb];sc.remove();ng(new Error('timeout'))},10000);
+  window[cb]=d=>{clearTimeout(t);delete window[cb];sc.remove();ok(d)};sc.onerror=()=>{clearTimeout(t);delete window[cb];sc.remove();ng(new Error('net'))};sc.src=url+'&callback='+cb;document.head.append(sc)})}
+function rankForm(){const k=S.rakuten||{};$('#rankSet').innerHTML=`<div class="fld"><label>楽天のアプリケーションID</label><input id="rkId" value="${esc(k.id||'')}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+  <div class="fld"><label>アクセスキー</label><input id="rkKey" value="${esc(k.key||'')}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+  <div class="btns"><button class="pri" id="rkSave">保存してランキングを見る</button>${k.id?'<button id="rkCancel">やめる</button>':''}</div>
+  <p class="note">IDとキーはこのiPhoneのアプリの中だけに保存され、ほかの人には見えません（「データ」の書き出しファイルには含まれます）。取り方は ⚙ →「使い方」にあります。</p>`;
+  $('#rkSave').onclick=()=>{const id=$('#rkId').value.trim(),key=$('#rkKey').value.trim();if(!id||!key)return toast('IDとアクセスキーの両方を入れてください');S.rakuten={id,key};S.rank={};save();$('#rankSet').innerHTML='';loadRank(S.rgen||'001')};
+  if($('#rkCancel'))$('#rkCancel').onclick=()=>{$('#rankSet').innerHTML='';renderRank()}}
+function renderRank(){const g=S.rgen||'001';$('#rgen').innerHTML=RGEN.map(([id,n])=>`<button data-g="${id}" aria-pressed="${id===g}">${n}</button>`).join('');
+  const m=$('#rankMsg');if(!S.rakuten?.id){m.className='msg';m.textContent='楽天ブックスの売れている本のランキングを出すには、楽天の無料のアプリケーションIDとアクセスキーが必要です。';$('#rank').innerHTML='';if(!$('#rkId'))rankForm();return}
+  const R0=(S.rank||{})[g];if(RANK_RUN)return;if(!R0){m.textContent='';$('#rank').innerHTML='';return}
+  m.className='msg'+(R0.err?' err':'');m.textContent=R0.err||`楽天ブックスの売れている順（${new Date(R0.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}時点）`;
+  const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));
+  $('#rank').innerHTML=(R0.items||[]).map((n,i)=>`<div class="rel"><div class="face" style="--c:#ddd5c4;--t:#2c2a26;--fh:100px;margin:0">${n.img?`<img src="${esc(n.img)}" alt="" loading="lazy" style="object-fit:contain;background:#fff" onerror="this.remove()">`:''}<div class="gen"><b>${esc(n.title)}</b></div></div>
+    <div><b>${i+1}位　${esc(n.title)}</b><div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div>${n.url?`<div class="d"><a href="${esc(n.url)}" target="_blank" rel="noopener">楽天ブックスで見る</a></div>`:''}</div>
+    ${owned.has(n.isbn)?'<span class="note">登録済み</span>':`<button class="wish" data-rk="${i}">読みたい</button>`}</div>`).join('')+
+    `<p class="note" style="margin-top:12px"><button id="rkEdit" class="chip">楽天のIDを変える</button>　<button id="rkReload" class="chip">今すぐ更新</button></p>`;
+  $('#rkEdit').onclick=rankForm;$('#rkReload').onclick=()=>loadRank(g,true)}
+async function loadRank(g,force){S.rgen=g;save();const k=S.rakuten;if(!k?.id){renderRank();return}const R0=(S.rank||{})[g];
+  if(!force&&R0&&!R0.err&&Date.now()-R0.t<12*3600e3){renderRank();return}
+  RANK_RUN=true;renderRank();$('#rankMsg').className='msg';$('#rankMsg').textContent='ランキングを読み込んでいます…';$('#rank').innerHTML='';
+  const url=`https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&formatVersion=2&applicationId=${encodeURIComponent(k.id)}&accessKey=${encodeURIComponent(k.key)}&booksGenreId=${g}&sort=sales&hits=30`;
+  let d,err='';try{const r=await fetch(url);d=await r.json().catch(()=>({}));if(!r.ok)err=r.status===403?'楽天に断られました。楽天のアプリ設定の「許可されたWebサイト」に rnonow.github.io が入っているか確かめてください。':r.status===401||r.status===400?'楽天のIDかアクセスキーが違うようです。「楽天のIDを変える」から入れ直してください。':'楽天につながりませんでした。少し待って「今すぐ更新」を押してください。'}
+  catch(e){try{d=await jsonp(url);if(d.error)err='楽天のIDかアクセスキーが違うか、許可されたWebサイトの設定が合っていないようです。（'+(d.error_description||d.error)+'）'}catch(e2){err='楽天につながりませんでした。少し待って「今すぐ更新」を押してください。'}}
+  const items=(d?.Items||[]).map(x=>x.Item||x).map(x=>({isbn:x.isbn||'',title:x.title||'',author:x.author||'',publisher:x.publisherName||'',pubdate:x.salesDate||'',img:x.largeImageUrl||'',url:x.itemUrl||''}));
+  S.rank=S.rank||{};S.rank[g]={t:Date.now(),items,err:err||(items.length?'':'ランキングが空でした')};RANK_RUN=false;save();renderRank()}
+$('#rgen').onclick=e=>{const b=e.target.closest('[data-g]');if(b)loadRank(b.dataset.g)};
+$('#rank').onclick=e=>{const b=e.target.closest('[data-rk]');if(!b)return;const n=S.rank[S.rgen||'001'].items[+b.dataset.rk];addWish({isbn:n.isbn,title:n.title,author:n.author,publisher:n.publisher,pubdate:n.pubdate});renderRank()};
 $('#mutes').onclick=e=>{const b=e.target.closest('[data-um]');if(b){S.mute.splice(+b.dataset.um,1);save();renderNews()}};
 $('#follows').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){S.follows.splice(+b.dataset.rm,1);save();renderNews()}};
 $('#fadd').onclick=()=>{const q=$('#fq').value.trim();if(!q)return;S.follows=S.follows||[];S.follows.push({q,type:$('#ft').value});$('#fq').value='';save();renderNews();toast('追加しました。「今すぐ確認」で探せます')};
@@ -854,7 +885,8 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <h3>選書（新刊・おすすめ）</h3><ul>
   <li>本棚にある本のシリーズと著者から、新しく出た本と発売予定の本を自動で探します。</li>
   <li>興味のないものは「この著者を追わない」などを押すと、次から出なくなります。</li>
-  <li>「おすすめ」には、持っている本の著者の、まだ持っていない本が出ます。「読みたい」を押すと読みたい棚に入ります。</li></ul>
+  <li>「おすすめ」には、持っている本の著者の、まだ持っていない本が出ます。「読みたい」を押すと読みたい棚に入ります。</li>
+  <li>「ランキング」は楽天ブックスの売れている順です。最初に楽天の無料のIDを入れます：<br>① <a href="https://webservice.rakuten.co.jp/app/create" target="_blank" rel="noopener">楽天ウェブサービスのアプリ登録</a>を開き、楽天会員でログイン<br>② アプリケーション名は英数字（例：hondana）、アプリケーションURLは https://rnonow.github.io/hondana/ 、アプリケーションタイプは「Webアプリケーション」<br>③ 「許可されたWebサイト」に rnonow.github.io と入れる<br>④ APIアクセススコープは「楽天ブックスAPI」にチェック<br>⑤ 規約に同意して発行し、出てきた「アプリケーションID」と「アクセスキー」を選書→ランキングの欄に貼り付けて保存</li></ul>
   <h3>人に見せる</h3><ul>
   <li>「画像で保存」：本棚を3段ずつ画像にして、写真に保存したりLINEで送ったりできます。</li>
   <li>「共有リンク」：今の本棚をリンクにして送れます。相手は見るだけで、変更はできません。リンクを知っている人なら誰でも見られるので、送る相手は選んでください。</li></ul>
@@ -882,7 +914,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v34';let updAt=0;
+const APP_V='hondana-v35';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
