@@ -111,6 +111,11 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
+.selbar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:10px;max-width:1240px}
+.selbar button{padding:6px 12px;min-height:38px}
+#selMode[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+.bk.sel{transform:translateY(-8px)}.bk.sel>*{outline:3px solid #ffb703;outline-offset:1px}
+.ghost .cnt{position:absolute;top:-10px;right:-10px;z-index:3;background:var(--acc);color:#fff;font-size:13px;font-weight:700;border-radius:99px;padding:2px 8px}
 .case,.tray .row,.face,.spine,.ghost,.scan{forced-color-adjust:none}
 .scan{position:relative;background:#000;border-radius:10px;overflow:hidden;min-height:220px;margin:8px 0}
 .scan video{width:100%;display:block}
@@ -159,8 +164,11 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <button id="caseRen">名前変更</button>
       <button id="shelfNew">段を追加</button>
       <button id="caseDel">本棚を削除</button>
+      <button id="selMode" aria-pressed="false">まとめて選ぶ</button>
     </div>
     <p class="note">本を長押し（パソコンはドラッグ）すると持ち上がり、好きな段・位置へ動かせます。タップで詳細を開き「表紙を見せて飾る」にすると面陳になります。</p>
+    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selClr">選択をやめる</button>
+      <p class="note" style="flex-basis:100%;margin:0">本をタップして選び、選んだ本のどれかを長押し（パソコンはドラッグ）すると、まとめて動かせます。</p></div>
     <div class="case" id="case"></div>
     <div class="tray">
       <h3>未配置の本</h3>
@@ -223,12 +231,18 @@ function sample(){
 }
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-if(!S||!S.cases||(S.sample&&Object.values(S.books).every(b=>!b.isbn))){S=sample()}
+if(!S||!S.cases||(S.sample&&Object.values(S.books).every(b=>!b.isbn))){S=sample();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 if(!S.cur||!S.cases.find(c=>c.id===S.cur))S.cur=S.cases[0].id;
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('この環境では保存できません')}};
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)};
 const curCase=()=>S.cases.find(c=>c.id===S.cur);
 
+/* ---- シリーズと巻数（書名の末尾の数字・上中下から自動判定。詳細画面で直せる） ---- */
+const z2h=t=>String(t||'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
+const VOL_RE=/[\s　]*(?:[（(［\[]\s*)?(?:第|vol\.?|Vol\.?|VOL\.?|#)?\s*(\d{1,4}|上|中|下)\s*(?:巻|集|号)?\s*(?:[)）］\]])?\s*$/;
+function volOf(b){if(b.vol!==undefined&&b.vol!=='')return parseFloat(z2h(b.vol))||0;const m=z2h(b.title).match(VOL_RE);if(!m)return 0;return {上:1,中:2,下:3}[m[1]]||parseInt(m[1])}
+function seriesOf(b){if(b.series)return b.series.trim();const t=z2h(b.title);const m=t.match(VOL_RE);return (m?t.slice(0,m.index):t).replace(/[\s　.,:：・-]+$/,'').trim()}
+const byVol=(a,b)=>seriesOf(S.books[a]).localeCompare(seriesOf(S.books[b]),'ja')||volOf(S.books[a])-volOf(S.books[b]);
 /* ---- 本の見た目 ---- */
 function look(b){const h=hash(b.isbn||b.title);const p=b.color?[b.color,b.tcolor||'#fff']:PAL[h%PAL.length];
   return {c:p[0],t:p[1],h:150+(h%5)*10,w:30+(hash(b.title)%4)*6}}
@@ -244,7 +258,7 @@ function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
   const inner=b.mode==='face'?faceHTML(b,L.h+10):
     b.spine?`<div class="spine photo" style="--c:${L.c};--h:${L.h}px;--w:${b.spineW||L.w}px"><img src="${esc(b.spine)}" alt=""></div>`:
     `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px">${src?`<img class="bg" src="${esc(src)}" alt="" loading="lazy" ${b.cover?'':'data-g="1"'} ${IMG_ON}>`:''}<span class="ti">${esc(b.title)}</span><span class="au">${esc(b.author)}</span></div>`;
-  return `<div class="bk st-${b.status}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
+  return `<div class="bk st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
 
 /* ---- 本棚 ---- */
 function renderShelf(){
@@ -259,13 +273,25 @@ const listOf=sid=>sid==='tray'?S.tray:S.cases.flatMap(c=>c.shelves).find(s=>s.id
 function removeEverywhere(id){S.tray=S.tray.filter(x=>x!==id);for(const c of S.cases)for(const s of c.shelves)s.books=s.books.filter(x=>x!==id)}
 function placeOf(id){if(S.tray.includes(id))return '未配置';for(const c of S.cases)for(const s of c.shelves)if(s.books.includes(id))return `${c.name} / ${s.name}`;return ''}
 
+/* まとめて選ぶ */
+let SELMODE=false;const SEL=new Set();
+function renderSel(){$('#selbar').hidden=!SELMODE;$('#selMode').setAttribute('aria-pressed',SELMODE);$('#selN').textContent=SEL.size+'冊選択中';
+  for(const el of document.querySelectorAll('#v-shelf .bk'))el.classList.toggle('sel',SEL.has(el.dataset.id))}
+$('#selMode').onclick=()=>{SELMODE=!SELMODE;if(!SELMODE)SEL.clear();renderSel()};
+$('#selClr').onclick=()=>{SEL.clear();SELMODE=false;renderSel()};
+$('#selSeries').onclick=()=>{if(!SEL.size)return toast('先にシリーズの本を1冊タップしてください');const ser=new Set([...SEL].map(id=>seriesOf(S.books[id])));
+  for(const b of Object.values(S.books))if(ser.has(seriesOf(b))&&placeOf(b.id))SEL.add(b.id);renderSel();toast(`${SEL.size}冊を選びました`)};
+$('#selSort').onclick=()=>{if(SEL.size<2)return toast('2冊以上選んでください');
+  const slots=[...S.cases.flatMap(c=>c.shelves.map(s=>s.id)),'tray'];const sid=slots.find(x=>listOf(x).some(id=>SEL.has(id)));const at=listOf(sid).findIndex(id=>SEL.has(id));
+  const ids=[...SEL].sort(byVol);for(const id of ids)removeEverywhere(id);listOf(sid).splice(at,0,...ids);save();renderShelf();toast('巻数順に並べました')};
 /* ドラッグ：マウスはそのまま、タッチは長押し（約0.4秒）で持ち上げる */
 let D=null;
 function startDrag(x,y){D.on=true;const r=D.el.getBoundingClientRect();D.dx=x-r.left;D.dy=y-r.top;
-  D.g=D.el.cloneNode(true);D.g.classList.remove('lift');D.g.classList.add('ghost');document.body.append(D.g);
+  D.group=SEL.has(D.id)&&SEL.size>1?[...SEL]:null;
+  D.g=D.el.cloneNode(true);D.g.classList.remove('lift','sel');D.g.classList.add('ghost');if(D.group){D.g.insertAdjacentHTML('beforeend',`<span class="cnt">${D.group.length}冊</span>`);for(const el of document.querySelectorAll('#v-shelf .bk.sel'))el.classList.add('dragging')}document.body.append(D.g);
   D.g.style.left=r.left+'px';D.g.style.top=r.top+'px';D.el.classList.add('dragging');document.body.classList.add('dragging');
   D.m=document.createElement('div');D.m.className='mark'}
-function endDrag(){if(!D)return;clearTimeout(D.timer);D.el.classList.remove('lift','dragging');document.body.classList.remove('dragging');D.g?.remove();D.m?.remove()}
+function endDrag(){if(!D)return;clearTimeout(D.timer);D.el.classList.remove('lift','dragging');for(const el of document.querySelectorAll('#v-shelf .bk.dragging'))el.classList.remove('dragging');document.body.classList.remove('dragging');D.g?.remove();D.m?.remove()}
 document.addEventListener('pointerdown',e=>{
   const bk=e.target.closest('#v-shelf .bk');if(!bk||e.button>0)return;
   D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse'};
@@ -282,7 +308,7 @@ document.addEventListener('pointermove',e=>{
   D.g.style.left=e.clientX-D.dx+'px';D.g.style.top=e.clientY-D.dy+'px';
   const row=document.elementFromPoint(e.clientX,e.clientY)?.closest('.row');
   if(!row){D.m.remove();D.to=null}else{
-  const kids=[...row.querySelectorAll('.bk')].filter(k=>k!==D.el);
+  const kids=[...row.querySelectorAll('.bk')].filter(k=>k!==D.el&&!(D.group&&SEL.has(k.dataset.id)));
   let i=kids.findIndex(k=>{const r=k.getBoundingClientRect();return e.clientX<r.left+r.width/2});
   if(i<0)i=kids.length;
   row.querySelector('.empty')?.setAttribute('hidden','');
@@ -293,8 +319,8 @@ document.addEventListener('pointermove',e=>{
 },{passive:false});
 document.addEventListener('pointerup',()=>{
   if(!D)return;const d=D;endDrag();D=null;
-  if(!d.on){openBook(d.id);return}
-  if(d.to){removeEverywhere(d.id);const L=listOf(d.to.sid);const at=d.to.ref?L.indexOf(d.to.ref):L.length;L.splice(at<0?L.length:at,0,d.id);save()}
+  if(!d.on){if(SELMODE){SEL.has(d.id)?SEL.delete(d.id):SEL.add(d.id);renderSel()}else openBook(d.id);return}
+  if(d.to){const ids=d.group?d.group.sort(byVol):[d.id];for(const id of ids)removeEverywhere(id);const L=listOf(d.to.sid);const at=d.to.ref?L.indexOf(d.to.ref):L.length;L.splice(at<0?L.length:at,0,...ids);save();if(d.group)toast(`${ids.length}冊を巻数順に移動しました`)}
   renderShelf();
 });
 document.addEventListener('pointercancel',()=>{if(!D)return;const on=D.on;endDrag();D=null;if(on)renderShelf()});
@@ -308,8 +334,11 @@ $('#caseDel').onclick=()=>{if(S.cases.length<2)return toast('本棚は最低1つ
   confirmP(`「${c.name}」を削除します。並んでいた本は「未配置」に移ります。`,()=>{for(const s of c.shelves)S.tray.push(...s.books);S.cases=S.cases.filter(x=>x!==c);S.cur=S.cases[0].id;save();renderShelf()})};
 $('#case').addEventListener('click',e=>{const b=e.target.closest('.sname');if(!b)return;const c=curCase();const s=c.shelves.find(x=>x.id===b.dataset.sid);
   openPanel(`<button class="x" data-close>閉じる</button><h2>段の設定</h2><div class="fld"><label>段の名前</label><input id="sn" value="${esc(s.name)}"></div>
-  <div class="btns"><button class="pri" id="snOk">保存</button><button id="snDel">この段を削除</button></div><p class="msg">削除すると、この段の本は「未配置」に移ります。</p>`);
+  <div class="btns"><button class="pri" id="snOk">保存</button><button id="snDel">この段を削除</button></div>
+  <div class="btns"><button id="snTidy">シリーズを巻数順に整える</button></div><p class="msg">同じシリーズの本を、最初の1冊の位置に巻数順でまとめます。</p><p class="msg">削除すると、この段の本は「未配置」に移ります。</p>`);
   $('#snOk').onclick=()=>{s.name=$('#sn').value.trim()||s.name;save();renderShelf();closePanel()};
+  $('#snTidy').onclick=()=>{const out=[],done=new Set();for(const id of s.books){if(done.has(id))continue;const ser=seriesOf(S.books[id]);const grp=s.books.filter(x=>!done.has(x)&&seriesOf(S.books[x])===ser).sort(byVol);grp.forEach(x=>done.add(x));out.push(...grp)}
+    s.books=out;save();renderShelf();closePanel();toast('巻数順に整えました')};
   $('#snDel').onclick=()=>{if(c.shelves.length<2)return toast('段は最低1つ必要です');S.tray.push(...s.books);c.shelves=c.shelves.filter(x=>x!==s);save();renderShelf();closePanel()};
 });
 
@@ -332,8 +361,9 @@ function form(b){return `
   <div class="two"><div class="fld"><label>状態</label><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
   <div class="fld"><label>本棚での見せ方</label><select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
   <div class="two"><div class="fld"><label>背表紙の色</label><input type="color" id="f-color" value="${look(b).c}" style="height:42px;padding:2px"></div><div class="fld"><label>文字の色</label><input type="color" id="f-tcolor" value="${look(b).t}" style="height:42px;padding:2px"></div></div>
+  <div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>
   <div class="fld"><label>メモ</label><textarea id="f-memo" rows="3">${esc(b.memo)}</textarea></div>`}
-function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo'])b[k]=$('#f-'+k).value.trim();
+function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol'])b[k]=$('#f-'+k).value.trim();
   const c=$('#f-color').value,t=$('#f-tcolor').value;const L0=look({...b,color:null});if(b.color||c!==L0.c||t!==L0.t){b.color=c;b.tcolor=t}b.isbn=normIsbn(b.isbn)||b.isbn}
 function bindImg(b){
   const pick=cb=>{const inp=$('#imgIn');inp.value='';inp.onchange=()=>{const f=inp.files[0];if(f)cb(f)};inp.click()};
