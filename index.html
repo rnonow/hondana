@@ -30,6 +30,7 @@
 :root[data-theme=light]{color-scheme:light}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--wall);color:var(--ink);font:15px/1.55 "Zen Kaku Gothic New",system-ui,sans-serif;overflow-x:clip}
+html,body{overscroll-behavior:none}.panel{overscroll-behavior:contain}
 button,input,select,textarea{font:inherit;color:inherit}
 button{white-space:nowrap;cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;min-height:40px}
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
@@ -965,14 +966,20 @@ $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</butt
 
 /* ---- 画面切替 ---- */
 function renderAll(){renderShelf();renderList();renderNews();renderReco();renderBadge()}
-function show(v){$('#caseMore').hidden=v!=='shelf';$('#findBtn').setAttribute('aria-pressed',v==='list');for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
+function show(v){if(v==='shelf')scrollTo(0,0);$('#caseMore').hidden=v!=='shelf';$('#findBtn').setAttribute('aria-pressed',v==='list');for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
   for(const s of ['shelf','read','list','news'])$('#v-'+s).hidden=s!==v;if(v==='shelf'&&Math.abs($('#case').clientWidth-PW)>4)renderShelf();if(location.hash!=='#'+v&&!location.hash.startsWith('#view='))history.replaceState(null,'','#'+v);
   if(v==='news'){showSeg(S.seg||'new');if(newsStale())checkNews();S.newsSeen=(S.news?.items||[]).map(x=>x.isbn);save();setTimeout(renderBadge,1500)}}
+/* 画面が上下にぶれないようにする：本棚は上下に動かさない。ほかの画面も、中身が画面に収まる時は動かさない（はみ出す時だけ上下にスクロール） */
+let TX=0,TY=0;
+document.addEventListener('touchstart',e=>{const t=e.touches[0];TX=t.clientX;TY=t.clientY},{passive:true});
+document.addEventListener('touchmove',e=>{if(D?.on||e.touches.length>1)return;if(e.target.closest('.panel,.menu,#viewer:not([hidden]),.scan'))return;
+  const t=e.touches[0];if(Math.abs(t.clientY-TY)<=Math.abs(t.clientX-TX))return;
+  const el=document.scrollingElement;if(!$('#v-shelf').hidden||el.scrollHeight<=innerHeight+2)e.preventDefault()},{passive:false});
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v51';let updAt=0;
+const APP_V='hondana-v52';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
