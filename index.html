@@ -93,7 +93,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .fld{margin-bottom:10px}.fld label{display:block;font-size:13px;color:var(--mute);margin-bottom:3px}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.btns.stick{position:sticky;bottom:-20px;z-index:3;background:var(--panel);margin:12px -20px -20px;padding:10px 20px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -8px 16px -10px #0004;flex-wrap:nowrap}.btns.stick button{flex:1;min-height:48px}
+.btns.stick{position:sticky;bottom:-20px;z-index:3;background:var(--panel);margin:12px -20px -20px;padding:10px 20px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -8px 16px -10px #0004;flex-wrap:nowrap}.btns.stick{flex-wrap:wrap}.btns.stick>button{flex:1;min-height:48px}
 .x{float:right;min-height:36px;padding:4px 12px}
 .prev{display:flex;gap:14px;align-items:flex-end;margin:6px 0 14px}
 .prev .face{--fh:150px;--k:1;margin:0;flex:none}
@@ -615,14 +615,16 @@ function form(b,add){return `
   <div class="fld"><label>タイトル</label><input id="f-title" value="${esc(b.title)}"></div>
   <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
+  ${add?`<div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>`:''}
   </details>
-  <div class="two"><div class="fld">${add?'':'<label>状態</label>'}<select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
+${add?`  <div hidden><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>`:`  <div class="two"><div class="fld">${add?'':'<label>状態</label>'}<select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
   <div class="fld">${add?'':'<label>本棚での見せ方</label>'}<select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
   <div class="fld"><label>背表紙の色（左ほどおすすめ。文字の色は自動）</label><div class="cchips" id="f-chips">${chipsHTML(recoColors(b),look(b).c)}<input type="color" id="f-color" value="${look(b).c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
   ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}
   <div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>
-  <div class="fld"><label>メモ</label><textarea id="f-memo" rows="3">${esc(b.memo)}</textarea></div>`}
+  <div class="fld"><label>メモ</label><textarea id="f-memo" rows="3">${esc(b.memo)}</textarea></div>`}`}
 function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol']){const el=$('#f-'+k);if(el)b[k]=el.value.trim()}
+  if(!$('#f-color'))return void(b.isbn=normIsbn(b.isbn)||b.isbn);
   const c=$('#f-color').value,t=ink(c);const L0=look(b);
   if(c!==L0.c){if($('#f-sall')?.checked){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c,t};for(const x of seriesBooks(b)){delete x.color;delete x.tcolor}delete b.color;delete b.tcolor}else{b.color=c;b.tcolor=t}}
   b.isbn=normIsbn(b.isbn)||b.isbn}
@@ -675,7 +677,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
    <p class="msg" id="lmsg"></p>
    <div id="serBox"></div>
    <div id="fwrap">${form(b,1)}</div>
-   <div class="btns stick"><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
+   <div class="btns stick"><div class="seg" id="aSt" style="flex-basis:100%;margin:0 0 4px">${Object.entries(ST).map(([k,v])=>`<button type="button" data-st="${k}" aria-pressed="${k===b.status}">${v}</button>`).join('')}</div><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
   bindImg(b);
   const go=async()=>{const isbn=normIsbn($('#isbn').value);const m=$('#lmsg');m.className='msg';
     if(!isbn){m.textContent='ISBNの桁数が正しくありません';m.classList.add('err');return}
@@ -704,6 +706,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
     const all=[b,...extra].sort((x,y)=>volOf(x)-volOf(y));all.forEach((x,i)=>{x.added=Date.now()+i;S.books[x.id]=x});if(LOCK[b.status])all.forEach(placeByStatus);else bottomList().push(...all.map(x=>x.id));
     S.sample=false;save();renderAll();closePanel();toast(extra.length?`「${seriesOf(b)}」${all.length}冊を追加しました`:`「${b.title}」を追加しました`);return true};
   $('#aSave').onclick=save1;
+  $('#aSt').onclick=e=>{const t=e.target.closest('[data-st]');if(!t)return;$('#f-status').value=t.dataset.st;b.status=t.dataset.st;for(const x of $('#aSt').children)x.setAttribute('aria-pressed',x===t)};
   $('#aNext').onclick=()=>{if(save1())setTimeout(()=>addBook({autoscan:true}),300)};
 }
 /* シリーズのほかの巻：国立国会図書館サーチで同じシリーズ名・同じ出版社の巻を集める */
@@ -969,7 +972,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v50';let updAt=0;
+const APP_V='hondana-v51';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
