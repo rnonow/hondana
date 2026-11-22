@@ -110,10 +110,11 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
 .ttlwrap{position:relative;display:flex;align-items:center;gap:4px;min-width:0;margin-right:8px}.ttlwrap .mwrap{position:static}
-select.ttl{appearance:none;-webkit-appearance:none;border:0;background:none;color:var(--ink);font-size:24px;font-weight:900;letter-spacing:.02em;padding:0 2px;min-height:0;width:auto;max-width:44vw;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;cursor:pointer;box-shadow:none}
-select.ttl.multi{padding-right:18px;background:linear-gradient(45deg,transparent 50%,currentColor 50%) right 6px center/6px 6px no-repeat,linear-gradient(-45deg,transparent 50%,currentColor 50%) right 0 center/6px 6px no-repeat}
-select.ttl:disabled{opacity:1;cursor:default}
+.ttlbox{position:relative;min-width:0;display:flex}.ttl{color:var(--ink);font-size:24px;font-weight:900;letter-spacing:.02em;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;padding:0 2px}
+#caseSel{position:absolute;inset:0;opacity:0;width:100%;min-height:0;cursor:pointer}#caseSel:disabled{display:none}
+#caseName.multi{padding-right:18px;background:linear-gradient(45deg,transparent 50%,currentColor 50%) right 6px center/6px 6px no-repeat,linear-gradient(-45deg,transparent 50%,currentColor 50%) right 0 center/6px 6px no-repeat}
 #caseMore{border:0;background:none;font-size:22px;padding:4px 8px;min-width:36px}
+#findBtn{min-width:48px;min-height:44px;padding:4px 10px;display:inline-flex;align-items:center;justify-content:center}#findBtn[aria-pressed=true]{background:var(--ink);color:var(--wall)}
 #gearBtn{font-size:26px;min-width:48px;min-height:44px;padding:4px 10px}
 .ttlwrap .menu{left:0;right:auto}
 .mwrap{position:relative}.more{min-width:44px;font-size:18px;line-height:1;padding:8px 12px}
@@ -145,7 +146,7 @@ select.ttl:disabled{opacity:1;cursor:default}
  :root{--k:.82}
  .spine .ti{font-size:11.5px;letter-spacing:0}.spine .au{font-size:9px}
  #v-shelf>.note{font-size:12px;margin:0 0 8px}
- h1{font-size:21px;margin:0}header{gap:8px}header .pri{padding:8px 12px}header{gap:6px;flex-wrap:nowrap}select.ttl{font-size:20px}header .pri,#ioBtn,#helpBtn{padding:8px 9px;font-size:14px;white-space:nowrap}
+ h1{font-size:21px;margin:0}header{gap:8px}header .pri{padding:8px 12px}header{gap:6px;flex-wrap:nowrap}.ttl{font-size:19px;letter-spacing:0}header .wide{display:none}.ttlwrap{flex:1 1 auto;margin-right:2px}#findBtn,#gearBtn{min-width:40px;padding:4px 6px}header .pri{padding:8px 8px;font-size:13px}#caseMore{padding:4px 4px;min-width:28px}header .pri,#ioBtn,#helpBtn{padding:8px 9px;font-size:14px;white-space:nowrap}
  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;gap:0;flex-wrap:nowrap;background:var(--panel);border-top:1px solid var(--line);padding:4px 6px calc(4px + env(safe-area-inset-bottom))}
  .tabs button{flex:1;border:0;border-radius:10px;min-height:48px;font-size:14px;background:none}
  .tabs button[aria-pressed=true]{background:var(--ink);color:var(--wall)}
@@ -165,7 +166,7 @@ select.ttl:disabled{opacity:1;cursor:default}
 </head>
 <body>
 <header>
-  <div class="ttlwrap"><select id="caseSel" class="ttl" aria-label="本棚を選ぶ"></select>
+  <div class="ttlwrap"><span class="ttlbox"><span id="caseName" class="ttl"></span><select id="caseSel" aria-label="本棚を選ぶ"></select></span>
       <div class="mwrap"><button id="caseMore" class="more" aria-label="本棚のメニュー" aria-expanded="false">…</button>
       <div class="menu" id="caseMenu" hidden>
       <button id="caseNew">本棚を追加</button>
@@ -180,11 +181,11 @@ select.ttl:disabled{opacity:1;cursor:default}
   </div>
   <nav class="tabs" id="tabs">
     <button data-v="shelf" aria-pressed="true">本棚</button>
-    <button data-v="list" aria-pressed="false">蔵書一覧</button>
     <button data-v="news" aria-pressed="false">新刊チェック</button>
   </nav>
   <span class="sp"></span>
-  <button class="pri" id="addBtn">＋ 本を追加</button>
+  <button class="pri" id="addBtn" aria-label="本を追加">＋ <span class="wide">本を</span>追加</button>
+  <button id="findBtn" class="more" aria-label="蔵書を探す"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>
   <div class="mwrap"><button id="gearBtn" class="more" aria-label="設定" aria-expanded="false">⚙︎</button>
   <div class="menu" id="gearMenu" hidden><button id="ioBtn">データ</button><button id="helpBtn">使い方</button></div></div>
 </header>
@@ -203,8 +204,9 @@ select.ttl:disabled{opacity:1;cursor:default}
   </section>
 
   <section id="v-list" class="sec" hidden>
+    <div class="vhead" style="display:flex;align-items:center;gap:8px;margin:0 0 10px"><h2 style="margin:0;font-size:20px;flex:1">蔵書を探す</h2><button id="findBack">本棚に戻る</button></div>
     <div class="filters">
-      <input id="q" placeholder="タイトル・著者・出版社で検索" aria-label="検索">
+      <input id="q" type="search" placeholder="タイトル・著者・出版社で検索" aria-label="検索">
       <select id="fst" aria-label="状態"><option value="">すべての状態</option><option value="unread">積読</option><option value="reading">読書中</option><option value="done">読了</option><option value="wish">欲しい</option></select>
       <select id="sort" aria-label="並び順"><option value="added">追加が新しい順</option><option value="title">タイトル順</option><option value="author">著者順</option><option value="pub">発売日が新しい順</option></select>
     </div>
@@ -304,7 +306,7 @@ function renderSampleBar(){const L=S.sampleKeep?[]:sampleBooks();$('#sampleBar')
 const bottomList=()=>{const c=curCase();return c.shelves[c.shelves.length-1].books};
 function sweepTray(){const t=(S.tray||[]).filter(id=>S.books[id]&&!S.cases.some(c=>c.shelves.some(x=>x.books.includes(id))));S.tray=[];if(t.length){bottomList().push(...t);save()}return t.length}
 function renderShelf(){sweepTray();renderSampleBar();renderSerDrag();
-  $('#caseSel').classList.toggle('multi',S.cases.length>1);$('#caseSel').disabled=S.cases.length<2;document.title=curCase().name;
+  $('#caseName').classList.toggle('multi',S.cases.length>1);$('#caseName').textContent=curCase().name;$('#caseSel').disabled=S.cases.length<2;document.title=curCase().name;
   $('#caseSel').innerHTML=S.cases.map(c=>`<option value="${c.id}" ${c.id===S.cur?'selected':''}>${esc(c.name)}</option>`).join('');
   const c=curCase();
   $('#case').innerHTML=c.shelves.map(s=>`<div class="shelf"><button class="sname" data-sid="${s.id}" title="段の名前を変更・削除">${esc(s.name)}</button>
@@ -785,6 +787,8 @@ const newsStale=()=>!S.news||Date.now()-S.news.t>12*3600e3;
 for(const [b,m] of [['#caseMore','#caseMenu'],['#gearBtn','#gearMenu']]){$(b).onclick=e=>{e.stopPropagation();const open=$(m).hidden;for(const x of document.querySelectorAll('.menu'))x.hidden=true;$(m).hidden=!open;$(b).setAttribute('aria-expanded',open)};
   $(m).addEventListener('click',()=>setTimeout(()=>{$(m).hidden=true;$(b).setAttribute('aria-expanded',false)},0))}
 document.addEventListener('click',e=>{if(!e.target.closest('.mwrap'))for(const x of document.querySelectorAll('.menu'))x.hidden=true});
+$('#findBtn').onclick=()=>{show('list');scrollTo(0,0);setTimeout(()=>$('#q').focus(),50)};
+$('#findBack').onclick=()=>show('shelf');
 $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</button><h2>使い方</h2><div class="help">
   <h3>本を登録する</h3><ul>
   <li>右上の「＋ 本を追加」から、バーコードを読み取るか、書名や著者名で探して登録します。</li>
@@ -821,14 +825,14 @@ $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</butt
 
 /* ---- 画面切替 ---- */
 function renderAll(){renderShelf();renderList();renderNews();renderBadge()}
-function show(v){$('#caseMore').hidden=v!=='shelf';for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
+function show(v){$('#caseMore').hidden=v!=='shelf';$('#findBtn').setAttribute('aria-pressed',v==='list');for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
   for(const s of ['shelf','list','news'])$('#v-'+s).hidden=s!==v;if(location.hash!=='#'+v&&!location.hash.startsWith('#view='))history.replaceState(null,'','#'+v);
   if(v==='news'){if(newsStale())checkNews();S.newsSeen=(S.news?.items||[]).map(x=>x.isbn);save();setTimeout(renderBadge,1500)}}
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v30';let updAt=0;
+const APP_V='hondana-v31';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
