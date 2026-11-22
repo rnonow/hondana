@@ -62,6 +62,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .spine .au{writing-mode:vertical-rl;font-size:10px;opacity:.8;max-height:28%;overflow:hidden;white-space:nowrap}
 .spine .bg{position:absolute;inset:-10%;width:120%;height:120%;object-fit:cover;object-position:left center;filter:blur(4px) brightness(.72) saturate(1.15)}
 .spine .ti,.spine .au{position:relative}
+.tcy{text-combine-upright:all;-webkit-text-combine:horizontal}
 .spine.hasimg{color:#fff;text-shadow:0 1px 3px #000c}
 .spine.photo{padding:0}.spine.photo img{width:100%;height:100%;object-fit:cover;display:block}.spine.photo::before,.spine.photo::after{display:none}
 .spine::before,.spine::after{content:"";position:absolute;left:0;right:0;height:2px;background:#fff3}.spine::before{top:6px}.spine::after{bottom:4px}
@@ -260,11 +261,13 @@ function coverHTML(b){const src=coverSrc(b);
   return `<div class="gen"><b>${esc(b.title)}</b><small>${esc(b.author)}</small></div>`+
     (src?`<img src="${esc(src)}" alt="" loading="lazy" ${b.cover?'':'data-g="1"'} ${IMG_ON}>`:'');}
 function faceHTML(b,fh){const L=look(b);return `<div class="face" style="--c:${L.c};--t:${L.t};--fh:${fh||L.h}px">${coverHTML(b)}</div>`}
+const tcy=t=>esc(t).replace(/(?<![\d&#])\d{1,3}(?!\d|;)/g,'<span class="tcy">$&</span>');
+const tiSize=t=>{const n=[...String(t||'')].length;return n>14?' style="font-size:10px"':n>10?' style="font-size:11px"':''};
 function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
   const src=coverSrc(b);
   const inner=b.mode==='face'?faceHTML(b,L.h):
     b.spine?`<div class="spine photo" style="--c:${L.c};--h:${L.h}px;--w:${b.spineW||L.w}px"><img src="${esc(b.spine)}" alt=""></div>`:
-    `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px"><span class="ti">${esc(b.title)}</span><span class="au">${esc(b.author)}</span></div>`;
+    `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px"><span class="ti"${tiSize(b.title)}>${tcy(b.title)}</span><span class="au">${tcy(b.author)}</span></div>`;
   return `<div class="bk st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
 
 /* ---- 本棚 ---- */
@@ -309,13 +312,27 @@ $('#selSort').onclick=()=>{if(SEL.size<2)return toast('2冊以上選んでくだ
 const loadImg=(src,cors)=>new Promise(ok=>{if(!src)return ok(null);const i=new Image();if(cors)i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=src;setTimeout(()=>ok(null),6000)});
 async function coverImg(b){if(b.cover)return loadImg(b.cover,!/^(data|blob):/.test(b.cover));const src=coverSrc(b);if(!src)return null;
   const i=await loadImg(src,true);return i&&i.naturalWidth>130?i:null}
-function vtext(g,t,x,y,maxH,size,color,bold){g.save();g.fillStyle=color;g.font=`${bold?'700 ':''}${size}px "Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif`;g.textAlign='center';g.textBaseline='middle';
-  const rot=c=>/[ -~]/.test(c)||'ー〜～―…'.includes(c);const adv=c=>/[ -~]/.test(c)?g.measureText(c).width+1:size*1.08;
-  const chars=[...String(t||'')];let top=y;const fits=chars.reduce((n,c)=>n+adv(c),0)<=maxH;
-  for(let k=0;k<chars.length;k++){const c=chars[k],a=adv(c);
-    if(!fits&&top+a>y+maxH-size*1.08){g.save();g.translate(x,top+size*.54);g.rotate(Math.PI/2);g.fillText('…',0,0);g.restore();break}
-    if(rot(c)){g.save();g.translate(x,top+a/2);g.rotate(Math.PI/2);g.fillText(c,0,0);g.restore()}else g.fillText(c,x,top+a/2);
-    top+=a}
+/* 縦書き：3桁までの数字は縦中横（正立）、英字は横倒し。入りきらなければ文字を小さく→2列にする */
+function vunits(t){const u=[];for(const m of String(t||'').matchAll(/\d{1,3}(?!\d)|[\s\S]/gu))u.push(m[0]);return u}
+function vlen(g,t,sz){g.save();g.font=sz+'px sans-serif';const n=vunits(t).reduce((n,c)=>n+(/^[ -~]$/.test(c)?g.measureText(c).width+1:sz*1.08),0);g.restore();return n}
+function vtext(g,t,x,y,maxH,size,color,bold,maxW,minSize){g.save();g.fillStyle=color;g.textAlign='center';g.textBaseline='middle';
+  const font=sz=>`${bold?'700 ':''}${sz}px "Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif`;
+  const U=vunits(t);const kind=c=>/^\d+$/.test(c)?'tcy':/^[ -~]$/.test(c)||'ー〜～―…'.includes(c)?'rot':'up';
+  const adv=(c,sz)=>kind(c)==='rot'&&/[ -~]/.test(c)?g.measureText(c).width+1:sz*1.08;
+  const total=(L,sz)=>{g.font=font(sz);return L.reduce((n,c)=>n+adv(c,sz),0)};
+  let sz=size,cols=[U];const lo=minSize||Math.max(7,size-5);while(sz>lo&&total(U,sz)>maxH)sz-=.5;
+  if(total(U,sz)>maxH&&maxW>=18){// 2列に分ける（右の列から読む。半分ずつ）
+    let s2=Math.min(size,Math.floor((maxW-4)/2.3));for(;;){g.font=font(s2);const T=total(U,s2);let acc=0,i=0;while(i<U.length&&acc+adv(U[i],s2)/2<T/2)acc+=adv(U[i++],s2);
+      if(Math.max(total(U.slice(0,i),s2),total(U.slice(i),s2))<=maxH||s2<=7){cols=[U.slice(0,i),U.slice(i)];sz=s2;break}s2-=.5}}
+  g.font=font(sz);const cw=sz*1.15;
+  cols.forEach((L,ci)=>{const cx=cols.length>1?x+(ci===0?cw/2:-cw/2):x;const fits=total(L,sz)<=maxH;g.font=font(sz);let top=y;
+    for(let k=0;k<L.length;k++){const c=L[k],a=adv(c,sz);
+      if(!fits&&top+a>y+maxH-sz*1.08){g.save();g.translate(cx,top+sz*.54);g.rotate(Math.PI/2);g.fillText('…',0,0);g.restore();break}
+      const kd=kind(c);
+      if(kd==='tcy'){g.save();const w=g.measureText(c).width,lim=Math.min(sz*1.05,(maxW||99)-4);g.translate(cx,top+a/2);if(w>lim)g.scale(lim/w,1);g.fillText(c,0,0);g.restore()}
+      else if(kd==='rot'){g.save();g.translate(cx,top+a/2);g.rotate(Math.PI/2);g.fillText(c,0,0);g.restore()}
+      else g.fillText(c,cx,top+a/2);
+      top+=a}});
   g.restore()}
 function wrapText(g,t,x,y,w,lh,maxLines){const out=[];let line='';for(const c of [...String(t||'')]){if(g.measureText(line+c).width>w&&line){out.push(line);line=c}else line+=c}if(line)out.push(line);
   out.slice(0,maxLines).forEach((l,i)=>g.fillText(i===maxLines-1&&out.length>maxLines?l.slice(0,-1)+'…':l,x,y+i*lh))}
@@ -339,7 +356,7 @@ async function shelfImage(c,shelves){const H=170,FW=Math.round(H*.7),PAD=24,ROWP
       else if(it.img){g.drawImage(it.img,x,base-H,it.w,H)}
       else{g.fillStyle=L.c;g.fillRect(x,base-H,it.w,H);g.fillStyle='#ffffff40';g.fillRect(x,base-H+6,it.w,2);g.fillRect(x,base-6,it.w,2);
         g.fillStyle='#ffffff30';g.fillRect(x,base-H,2,H);g.fillStyle='#00000040';g.fillRect(x+it.w-3,base-H,3,H);
-        vtext(g,b.title,x+it.w/2,base-H+12,H*.62-6,13,L.t,true);vtext(g,b.author,x+it.w/2,base-H+H*.62+6,H*.38-12,10,L.t,false)}
+        const aH=b.author?Math.min(H*.3,vlen(g,b.author,10)):0;vtext(g,b.title,x+it.w/2,base-H+12,H-26-aH-(aH?8:0),13,L.t,true,it.w-6,9);if(aH)vtext(g,b.author,x+it.w/2,base-12-aH,aH,10,L.t,false,it.w-6,7)}
       x+=it.w+GAP}
     if(!items[ri].length){g.fillStyle='#e8d9c6';g.globalAlpha=.4;g.font='13px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('（空）',W/2,y0+ROWP+H/2);g.globalAlpha=1}
     let bd=g.createLinearGradient(0,base,0,base+BOARD);bd.addColorStop(0,'#b07c4f');bd.addColorStop(.35,'#8a5a35');bd.addColorStop(1,'#6e4526');g.fillStyle=bd;g.fillRect(PAD-6,base,inner+12,BOARD)});
