@@ -261,10 +261,17 @@ function look(b,own=true){const k=skey(b),h=hash(k||b.isbn||b.title);const st=(S
 const seriesBooks=b=>{const k=skey(b);return Object.values(S.books).filter(x=>skey(x)===k)};
 /* 表紙画像：自分で選んだ画像 → ISBNから Google ブックスの表紙画像（画像がない本は灰色の仮画像が返るので、幅で見分けて外す） */
 const coverSrc=b=>b.cover||(b.isbn&&/^97[89]\d{10}$/.test(b.isbn)?`https://books.google.com/books/content?vid=ISBN${b.isbn}&printsec=frontcover&img=1&zoom=1&fife=w400`:'');
-const IMG_ON=`onerror="this.remove()" onload="if(this.dataset.g&&this.naturalWidth<=130){this.remove()}else{this.parentNode.classList.add('hasimg')}"`;
+/* 表紙が読めなかったとき：端末に保存した壊れた画像を消し、少し待って1回だけ取り直す（更新直後に一度に頼むと断られることがあるため） */
+const gUrl=isbn=>/^97[89]\d{10}$/.test(isbn||'')?`https://books.google.com/books/content?vid=ISBN${isbn}&printsec=frontcover&img=1&zoom=1&fife=w400`:'';
+function coverBad(img){const src=img.src;try{caches.open('hondana-img').then(c=>c.delete(src))}catch(e){}
+  const n=+(img.dataset.try||0);img.dataset.try=n+1;
+  if(n===0&&img.dataset.alt&&img.dataset.alt!==src){img.dataset.g='1';img.src=img.dataset.alt;return}
+  if(n<2&&img.dataset.g){setTimeout(()=>{if(img.isConnected)img.src=src.replace(/&r=\d+$/,'')+'&r='+(n+1)},1500+Math.random()*2500);return}
+  img.remove()}
+const IMG_ON=`onerror="coverBad(this)" onload="if(this.dataset.g&&this.naturalWidth<=130){coverBad(this)}else{this.parentNode.classList.add('hasimg')}"`;
 function coverHTML(b){const src=coverSrc(b);
   return `<div class="gen"><b>${esc(b.title)}</b><small>${esc(b.author)}</small></div>`+
-    (src?`<img src="${esc(src)}" alt="" loading="lazy" ${b.cover?'':'data-g="1"'} ${IMG_ON}>`:'');}
+    (src?`<img src="${esc(src)}" alt="" loading="lazy" ${b.cover?(/^https?:/.test(b.cover)&&gUrl(b.isbn)?`data-alt="${esc(gUrl(b.isbn))}"`:''):'data-g="1"'} ${IMG_ON}>`:'');}
 function faceHTML(b,fh){const L=look(b);return `<div class="face" style="--c:${L.c};--t:${L.t};--fh:${fh||L.h}px">${coverHTML(b)}</div>`}
 const tcy=t=>esc(t).replace(/(?<![\d&#])\d{1,3}(?!\d|;)/g,'<span class="tcy">$&</span>');
 const tiSize=t=>{const n=[...String(t||'')].length;return n>14?' style="font-size:10px"':n>10?' style="font-size:11px"':''};
