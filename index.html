@@ -166,6 +166,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
  #v-shelf>.note{font-size:12px;margin:0 0 8px}
  h1{font-size:21px;margin:0}header{gap:8px}header .pri{padding:8px 12px}header{gap:6px;flex-wrap:nowrap}.ttl{font-size:19px;letter-spacing:0}header .wide{display:none}.ttlwrap{flex:1 1 auto;margin-right:2px}#findBtn,#gearBtn{min-width:40px;min-height:40px;padding:4px 6px}header .pri{padding:8px 8px;font-size:13px}#caseMore{padding:4px 4px;min-width:28px}header .pri,#ioBtn,#helpBtn{padding:8px 9px;font-size:14px;white-space:nowrap}
  #seg{position:fixed;left:10px;right:10px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:29;margin:0;box-shadow:0 6px 20px #0003}#v-news{padding-bottom:70px}
+ #pgnav{position:fixed;left:14px;right:14px;bottom:calc(64px + env(safe-area-inset-bottom));z-index:28;margin:0;height:44px}
  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;gap:0;flex-wrap:nowrap;background:var(--panel);border-top:1px solid var(--line);padding:4px 6px calc(4px + env(safe-area-inset-bottom))}
  .tabs button{flex:1;border:0;border-radius:10px;min-height:48px;font-size:14px;background:none}
  .tabs button[aria-pressed=true]{background:var(--ink);color:var(--wall)}
@@ -355,12 +356,12 @@ function sweepTray(){const t=(S.tray||[]).filter(id=>S.books[id]&&!S.cases.some(
 /* 本棚をページに分けて、本のように左右にめくる。1ページ＝最大3段、段の本は幅に収まる分ずつ次のページへ続く */
 let PAGE=0,PAGES=1,PW=0;
 function bookW(id,k){const b=S.books[id];if(!b)return 0;const L=look(b);return (b.mode==='face'?L.h*k*.7+12:L.w*k)+2}
-function renderPages(c,zf){const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
+function renderPages(c,zf){$('#pgnav').hidden=false;const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
   const k=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k'))||1;
   const W=el.clientWidth||Math.min(document.querySelector('main').clientWidth,1240);PW=W;
   // いつも1ページ3段。画面の高さに収まるように、ページ全体を縮める
   const shH=mob?200:240,per=3;const top=Math.max(60,Math.min(240,el.getBoundingClientRect().top+scrollY||110));
-  const lim=shelfLimit();const z=zf||Math.max(.45,Math.min(1,(lim-top-60)/(per*shH+(mob?8:14))));el.style.setProperty('--z',z.toFixed(3));
+  const lim=shelfLimit();const z=zf||Math.max(.45,Math.min(1,(lim-top-4)/(per*shH+(mob?8:14))));el.style.setProperty('--z',z.toFixed(3));
   const inner=W/z-(mob?12:28)-(mob?16:24)-8;
   const rows=[];
   for(const sh of c.shelves){const out=[[]];let w=0;for(const id of sh.books){const bw=bookW(id,k);if(w+bw>inner&&out.at(-1).length){out.push([]);w=0}out.at(-1).push(id);w+=bw}
@@ -371,11 +372,11 @@ function renderPages(c,zf){const el=$('#case');const mob=matchMedia('(max-width:
   el.innerHTML=pages.map((h,i)=>`<div class="page" data-pg="${i}">${h}</div>`).join('');
   el.scrollLeft=PAGE*(el.clientWidth||W);renderPgNav();
   // 実際の高さを測って、ページ番号まで画面に収まっていなければ、もう一度だけ縮め直す
-  if(!zf&&el.clientWidth){const nb=($('#pgnav').hidden?el:$('#pgnav')).getBoundingClientRect().bottom+4,h=el.getBoundingClientRect().height;
+  if(!zf&&el.clientWidth){const nb=el.getBoundingClientRect().bottom+2,h=el.getBoundingClientRect().height;
     if(nb>lim&&h>0){const z2=Math.max(.45,z*(h-(nb-lim))/h);if(z2<z-.005)renderPages(c,z2)}}}
 /* 本棚が使える下の端：スマホは下のタブの上まで、パソコンは画面の下まで */
-function shelfLimit(){const t=$('#tabs');return getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top-6:innerHeight-8}
-function renderPgNav(){const n=$('#pgnav');n.hidden=PAGES<2;const bar=$('#pgBar');bar.max=Math.max(1,PAGES-1);if(document.activeElement!==bar||!bar.matches(':active'))bar.value=PAGE;$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1}
+function shelfLimit(){const t=$('#tabs'),n=$('#pgnav');if(getComputedStyle(n).position==='fixed')return n.getBoundingClientRect().top-8;return (getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top:innerHeight)-8-(n.offsetHeight+8)}
+function renderPgNav(){const n=$('#pgnav');n.hidden=false;const bar=$('#pgBar');bar.disabled=PAGES<2;bar.max=Math.max(1,PAGES-1);if(document.activeElement!==bar||!bar.matches(':active'))bar.value=PAGE;$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1}
 function goPage(i){const el=$('#case');i=Math.max(0,Math.min(PAGES-1,i));if(i===PAGE&&Math.abs(el.scrollLeft-i*el.clientWidth)<2)return false;PAGE=i;el.scrollTo({left:i*el.clientWidth,behavior:'smooth'});renderPgNav();return true}
 $('#case').addEventListener('scroll',()=>{const el=$('#case');if(!el.clientWidth)return;const i=Math.round(el.scrollLeft/el.clientWidth);if(i!==PAGE){PAGE=i;renderPgNav()}},{passive:true});
 $('#pgPrev').onclick=()=>goPage(PAGE-1);
@@ -1007,7 +1008,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v55';let updAt=0;
+const APP_V='hondana-v56';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
