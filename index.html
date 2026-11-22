@@ -112,6 +112,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .seg{display:flex;gap:4px;background:var(--line);border-radius:12px;padding:4px;margin:0 0 14px}.seg button{flex:1;border:0;background:none;border-radius:9px;min-height:40px;font-weight:700}
 .seg button[aria-pressed=true]{background:var(--panel);box-shadow:0 1px 4px #0002}
 .rel .wish{white-space:nowrap}
+.rklinks{display:flex;flex-direction:column;gap:10px}.btnlink{display:block;text-align:center;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);font-weight:700;text-decoration:none}
 .ttlwrap{position:relative;display:flex;align-items:center;gap:4px;min-width:0;margin-right:8px}.ttlwrap .mwrap{position:static}
 .ttlbox{position:relative;min-width:0;display:flex}.ttl{color:var(--ink);font-size:24px;font-weight:900;letter-spacing:.02em;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;padding:0 2px}
 #caseSel{position:absolute;inset:0;opacity:0;width:100%;min-height:0;cursor:pointer}#caseSel:disabled{display:none}
@@ -229,7 +230,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <p class="note">持っている本の著者の、まだ持っていない本です（国立国会図書館サーチ）。3日に1回、自動で探し直します。</p>
       <div class="filters" style="align-items:center"><button class="pri" id="rcheck">探し直す</button><span class="note" id="rlast" style="margin:0"></span></div>
       <p class="msg" id="rmsg"></p><div id="reco"></div></div>
-    <div id="pRank" hidden><div class="seg" id="rgen" style="margin-bottom:10px"></div><p class="msg" id="rankMsg"></p><div id="rankSet"></div><div id="rank"></div></div>
+    <div id="pRank" hidden><div class="seg" id="rgen" style="margin-bottom:10px"></div><p class="msg" id="rankMsg"></p><div id="rank"></div><div id="rankSet"></div></div>
     <div id="pNew">
     <h3>新刊チェック</h3>
     <p class="note">本棚にある本のシリーズと著者から、最近90日に出た本と発売予定の本を自動で探します（国立国会図書館サーチ）。アプリを開いた時に半日に1回確認します。</p>
@@ -830,14 +831,18 @@ const RGEN=[['001','総合'],['001001','漫画'],['001004','小説']];let RANK_R
 function jsonp(url){return new Promise((ok,ng)=>{const cb='rk'+Date.now()+Math.floor(Math.random()*1e4);const sc=document.createElement('script');
   const t=setTimeout(()=>{delete window[cb];sc.remove();ng(new Error('timeout'))},10000);
   window[cb]=d=>{clearTimeout(t);delete window[cb];sc.remove();ok(d)};sc.onerror=()=>{clearTimeout(t);delete window[cb];sc.remove();ng(new Error('net'))};sc.src=url+'&callback='+cb;document.head.append(sc)})}
-function rankForm(){const k=S.rakuten||{};$('#rankSet').innerHTML=`<div class="fld"><label>楽天のアプリケーションID</label><input id="rkId" value="${esc(k.id||'')}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+function rankForm(){const k=S.rakuten||{};($('#rkForm')||$('#rankSet')).innerHTML=`<div class="fld"><label>楽天のアプリケーションID</label><input id="rkId" value="${esc(k.id||'')}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
   <div class="fld"><label>アクセスキー</label><input id="rkKey" value="${esc(k.key||'')}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
   <div class="btns"><button class="pri" id="rkSave">保存してランキングを見る</button>${k.id?'<button id="rkCancel">やめる</button>':''}</div>
   <p class="note">IDとキーはこのiPhoneのアプリの中だけに保存され、ほかの人には見えません（「データ」の書き出しファイルには含まれます）。取り方は ⚙ →「使い方」にあります。</p>`;
   $('#rkSave').onclick=()=>{const id=$('#rkId').value.trim(),key=$('#rkKey').value.trim();if(!id||!key)return toast('IDとアクセスキーの両方を入れてください');S.rakuten={id,key};S.rank={};save();$('#rankSet').innerHTML='';loadRank(S.rgen||'001')};
   if($('#rkCancel'))$('#rkCancel').onclick=()=>{$('#rankSet').innerHTML='';renderRank()}}
 function renderRank(){const g=S.rgen||'001';$('#rgen').innerHTML=RGEN.map(([id,n])=>`<button data-g="${id}" aria-pressed="${id===g}">${n}</button>`).join('');
-  const m=$('#rankMsg');if(!S.rakuten?.id){m.className='msg';m.textContent='楽天ブックスの売れている本のランキングを出すには、楽天の無料のアプリケーションIDとアクセスキーが必要です。';$('#rank').innerHTML='';if(!$('#rkId'))rankForm();return}
+  const m=$('#rankMsg');$('#rgen').hidden=!S.rakuten?.id;
+  if(!S.rakuten?.id){m.className='msg';m.textContent='楽天ブックスのランキングを開きます（ブラウザで開きます）。';
+    $('#rank').innerHTML=`<div class="rklinks">${RGEN.map(([id,n])=>`<a class="btnlink" href="https://books.rakuten.co.jp/ranking/hourly/${id}/" target="_blank" rel="noopener">${n}のランキング</a>`).join('')}</div>
+`;
+    if(!$('#rkId')){$('#rankSet').innerHTML='<details style="margin-top:22px"><summary class="note" style="cursor:pointer">楽天のIDを入れて、アプリの中でランキングを見る</summary><div id="rkForm"></div></details>';rankForm()}return}
   const R0=(S.rank||{})[g];if(RANK_RUN)return;if(!R0){m.textContent='';$('#rank').innerHTML='';return}
   m.className='msg'+(R0.err?' err':'');m.textContent=R0.err||`楽天ブックスの売れている順（${new Date(R0.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}時点）`;
   const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));
@@ -914,7 +919,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v35';let updAt=0;
+const APP_V='hondana-v36';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
