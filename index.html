@@ -58,6 +58,10 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
  box-shadow:inset 3px 0 4px -2px #fff5,inset -4px 0 5px -2px #0007;overflow:hidden}
 .spine .ti{writing-mode:vertical-rl;font-weight:700;font-size:13px;line-height:1.1;max-height:68%;overflow:hidden;letter-spacing:.06em}
 .spine .au{writing-mode:vertical-rl;font-size:10px;opacity:.8;max-height:28%;overflow:hidden;white-space:nowrap}
+.spine .bg{position:absolute;inset:-10%;width:120%;height:120%;object-fit:cover;object-position:left center;filter:blur(4px) brightness(.72) saturate(1.15)}
+.spine .ti,.spine .au{position:relative}
+.spine.hasimg{color:#fff;text-shadow:0 1px 3px #000c}
+.spine.photo{padding:0}.spine.photo img{width:100%;height:100%;object-fit:cover;display:block}.spine.photo::before,.spine.photo::after{display:none}
 .spine::before,.spine::after{content:"";position:absolute;left:0;right:0;height:2px;background:#fff3}.spine::before{top:6px}.spine::after{bottom:4px}
 .face{height:calc(var(--fh) * var(--k));width:calc(var(--fh) * var(--k) * .7);margin:0 6px;box-shadow:6px 4px 10px #000a;position:relative;background:var(--c);overflow:hidden;border-radius:1px}
 .face img{width:100%;height:100%;object-fit:cover;display:block}
@@ -204,19 +208,19 @@ const ST={unread:'積読',reading:'読書中',done:'読了',wish:'欲しい'};
 
 function sample(){
   const B=[
-    ['9784003101018','こころ','夏目漱石','岩波書店','1927'],['9784101010014','吾輩は猫である','夏目漱石','新潮社','1961'],
-    ['9784062748681','ノルウェイの森 上','村上春樹','講談社','2004'],['9784167158057','博士の愛した数式','小川洋子','文藝春秋','2005'],
-    ['9784041026229','かがみの孤城','辻村深月','ポプラ社','2017'],['9784103534211','りんごかもしれない','ヨシタケシンスケ','ブロンズ新社','2013'],
-    ['9784167910761','コンビニ人間','村田沙耶香','文藝春秋','2018'],['9784309464930','銀河鉄道の夜','宮沢賢治','河出書房新社','2019'],
-    ['9784087711868','羊と鋼の森','宮下奈都','文藝春秋','2015'],['9784334039462','火車','宮部みゆき','新潮社','1998'],
-    ['9784480021984','星の王子さま','サン＝テグジュペリ','筑摩書房','2006'],['9784101092058','人間失格','太宰治','新潮社','1952']];
-  const books={};const ids=B.map(([isbn,title,author,publisher,pubdate],i)=>{const id=uid();books[id]={id,isbn:"",title,author,publisher,pubdate,status:['done','unread','reading','done'][i%4],mode:(i===4||i===5)?'face':'spine',memo:'',added:Date.now()-i*864e5,cover:''};return id});
+    ['9784101010137','こころ','夏目漱石','新潮社','2004'],['9784101010014','吾輩は猫である','夏目漱石','新潮社','2003'],
+    ['9784062748681','ノルウェイの森 上','村上春樹','講談社','2004'],['9784101215235','博士の愛した数式','小川洋子','新潮社','2005'],
+    ['9784591153321','かがみの孤城','辻村深月','ポプラ社','2017'],['9784893095626','りんごかもしれない','ヨシタケシンスケ','ブロンズ新社','2013'],
+    ['9784167911300','コンビニ人間','村田沙耶香','文藝春秋','2018'],['9784101092058','新編 銀河鉄道の夜','宮沢賢治','新潮社','1989'],
+    ['9784167910105','羊と鋼の森','宮下奈都','文藝春秋','2018'],['9784101369181','火車','宮部みゆき','新潮社','1998'],
+    ['9784102122044','星の王子さま','サン＝テグジュペリ','新潮社','2006'],['9784101006055','人間失格','太宰治','新潮社','2006']];
+  const books={};const ids=B.map(([isbn,title,author,publisher,pubdate],i)=>{const id=uid();books[id]={id,isbn,title,author,publisher,pubdate,status:['done','unread','reading','done'][i%4],mode:(i===4||i===5)?'face':'spine',memo:'',added:Date.now()-i*864e5,cover:''};return id});
   return {books,tray:[],follows:[{q:'辻村深月',type:'author'},{q:'ヨシタケシンスケ',type:'author'}],
     cases:[{id:uid(),name:'リビングの本棚',shelves:[{id:uid(),name:'上段',books:ids.slice(0,6)},{id:uid(),name:'中段',books:ids.slice(6,10)},{id:uid(),name:'下段',books:ids.slice(10)}]}],cur:null,sample:true};
 }
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-if(!S||!S.cases){S=sample()}
+if(!S||!S.cases||(S.sample&&Object.values(S.books).every(b=>!b.isbn))){S=sample()}
 if(!S.cur||!S.cases.find(c=>c.id===S.cur))S.cur=S.cases[0].id;
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('この環境では保存できません')}};
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)};
@@ -225,13 +229,18 @@ const curCase=()=>S.cases.find(c=>c.id===S.cur);
 /* ---- 本の見た目 ---- */
 function look(b){const h=hash(b.isbn||b.title);const p=b.color?[b.color,b.tcolor||'#fff']:PAL[h%PAL.length];
   return {c:p[0],t:p[1],h:150+(h%5)*10,w:30+(hash(b.title)%4)*6}}
-function coverHTML(b){const L=look(b);
-  const src=b.cover||(b.isbn?`https://ndlsearch.ndl.go.jp/thumbnail/${b.isbn}.jpg`:'');
+/* 表紙画像：自分で選んだ画像 → ISBNから Google ブックスの表紙画像（画像がない本は灰色の仮画像が返るので、幅で見分けて外す） */
+const coverSrc=b=>b.cover||(b.isbn&&/^97[89]\d{10}$/.test(b.isbn)?`https://books.google.com/books/content?vid=ISBN${b.isbn}&printsec=frontcover&img=1&zoom=1&fife=w400`:'');
+const IMG_ON=`onerror="this.remove()" onload="if(this.dataset.g&&this.naturalWidth<=130){this.remove()}else{this.parentNode.classList.add('hasimg')}"`;
+function coverHTML(b){const src=coverSrc(b);
   return `<div class="gen"><b>${esc(b.title)}</b><small>${esc(b.author)}</small></div>`+
-    (src?`<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()" onload="if(this.naturalWidth<10)this.remove()">`:'');}
+    (src?`<img src="${esc(src)}" alt="" loading="lazy" ${b.cover?'':'data-g="1"'} ${IMG_ON}>`:'');}
 function faceHTML(b,fh){const L=look(b);return `<div class="face" style="--c:${L.c};--t:${L.t};--fh:${fh||L.h}px">${coverHTML(b)}</div>`}
 function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
-  const inner=b.mode==='face'?faceHTML(b,L.h+10):`<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px"><span class="ti">${esc(b.title)}</span><span class="au">${esc(b.author)}</span></div>`;
+  const src=coverSrc(b);
+  const inner=b.mode==='face'?faceHTML(b,L.h+10):
+    b.spine?`<div class="spine photo" style="--c:${L.c};--h:${L.h}px;--w:${b.spineW||L.w}px"><img src="${esc(b.spine)}" alt=""></div>`:
+    `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px">${src?`<img class="bg" src="${esc(src)}" alt="" loading="lazy" ${b.cover?'':'data-g="1"'} ${IMG_ON}>`:''}<span class="ti">${esc(b.title)}</span><span class="au">${esc(b.author)}</span></div>`;
   return `<div class="bk st-${b.status}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
 
 /* ---- 本棚 ---- */
@@ -313,7 +322,7 @@ function confirmP(t,cb){openPanel(`<button class="x" data-close>閉じる</butto
 
 /* ---- 本の詳細・編集 ---- */
 function form(b){return `
-  <div class="prev">${faceHTML(b,150)}<div><button id="imgBtn">表紙画像を選ぶ</button><p class="msg">見つからない時は写真やスキャン画像を使えます</p></div></div>
+  <div class="prev">${faceHTML(b,150)}<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><button id="imgBtn">表紙を写真にする</button><button id="spBtn">背表紙を写真にする</button>${b.cover||b.spine?'<button id="imgClr">写真を外す</button>':''}<p class="msg" style="margin:0">表紙はISBNから自動で表示します。出ない時や背表紙を本物にしたい時は撮影してください</p></div></div>
   <div class="fld"><label>タイトル</label><input id="f-title" value="${esc(b.title)}"></div>
   <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
@@ -323,14 +332,18 @@ function form(b){return `
   <div class="fld"><label>メモ</label><textarea id="f-memo" rows="3">${esc(b.memo)}</textarea></div>`}
 function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo'])b[k]=$('#f-'+k).value.trim();
   const c=$('#f-color').value,t=$('#f-tcolor').value;const L0=look({...b,color:null});if(b.color||c!==L0.c||t!==L0.t){b.color=c;b.tcolor=t}b.isbn=normIsbn(b.isbn)||b.isbn}
-function bindImg(b){$('#imgBtn').onclick=()=>{const inp=$('#imgIn');inp.value='';inp.onchange=()=>{const f=inp.files[0];if(!f)return;shrink(f).then(u=>{b.cover=u;$('.prev .face').outerHTML=faceHTML(b,150)})};inp.click()}}
-function shrink(f){return new Promise(r=>{const img=new Image();img.onload=()=>{const k=Math.min(1,360/img.width);const c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',.82))};img.src=URL.createObjectURL(f)})}
+function bindImg(b){
+  const pick=cb=>{const inp=$('#imgIn');inp.value='';inp.onchange=()=>{const f=inp.files[0];if(f)cb(f)};inp.click()};
+  $('#imgBtn').onclick=()=>pick(f=>shrink(f,360).then(u=>{b.cover=u;$('.prev .face').outerHTML=faceHTML(b,150);toast('表紙を設定しました')}));
+  $('#spBtn').onclick=()=>pick(f=>shrink(f,600,true).then(([u,r])=>{b.spine=u;b.spineW=Math.round(Math.max(16,Math.min(70,look(b).h*r)));toast('背表紙を設定しました。保存すると本棚に反映されます')}));
+  const clr=$('#imgClr');if(clr)clr.onclick=()=>{delete b.cover;delete b.spine;delete b.spineW;$('.prev .face').outerHTML=faceHTML(b,150);clr.remove();toast('写真を外しました')}}
+function shrink(f,max=360,ratio=false){return new Promise(r=>{const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);const u=c.toDataURL('image/jpeg',.82);r(ratio?[u,img.width/img.height]:u)};img.src=URL.createObjectURL(f)})}
 
 function openBook(id){const b=S.books[id];if(!b)return;const tmp={...b};
   openPanel(`<button class="x" data-close>閉じる</button><h2>${esc(b.title)}</h2><p class="msg">場所：${esc(placeOf(id))}</p>${form(tmp)}
    <div class="btns"><button class="pri" id="bSave">保存</button><button id="bDel">削除</button></div>`);
   bindImg(tmp);
-  $('#bSave').onclick=()=>{readForm(tmp);Object.assign(b,tmp);save();renderAll();closePanel();toast('保存しました')};
+  $('#bSave').onclick=()=>{readForm(tmp);S.books[id]=tmp;save();renderAll();closePanel();toast('保存しました')};
   $('#bDel').onclick=()=>confirmP(`「${b.title}」を蔵書から削除します。`,()=>{removeEverywhere(id);delete S.books[id];save();renderAll()});
 }
 
