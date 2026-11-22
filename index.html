@@ -30,7 +30,7 @@
 :root[data-theme=light]{color-scheme:light}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--wall);color:var(--ink);font:15px/1.55 "Zen Kaku Gothic New",system-ui,sans-serif;overflow-x:clip}
-html,body{overscroll-behavior:none}.panel{overscroll-behavior:contain}
+html,body{overscroll-behavior:none}.panel{overscroll-behavior:contain}.iscroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 button,input,select,textarea{font:inherit;color:inherit}
 button{white-space:nowrap;cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;min-height:40px}
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
@@ -354,12 +354,12 @@ function sweepTray(){const t=(S.tray||[]).filter(id=>S.books[id]&&!S.cases.some(
 /* 本棚をページに分けて、本のように左右にめくる。1ページ＝最大3段、段の本は幅に収まる分ずつ次のページへ続く */
 let PAGE=0,PAGES=1,PW=0;
 function bookW(id,k){const b=S.books[id];if(!b)return 0;const L=look(b);return (b.mode==='face'?L.h*k*.7+12:L.w*k)+2}
-function renderPages(c){const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
+function renderPages(c,zf){const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
   const k=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k'))||1;
   const W=el.clientWidth||Math.min(document.querySelector('main').clientWidth,1240);PW=W;
   // いつも1ページ3段。画面の高さに収まるように、ページ全体を縮める
   const shH=mob?200:240,per=3;const top=Math.max(60,Math.min(240,el.getBoundingClientRect().top+scrollY||110));
-  const z=Math.max(.5,Math.min(1,(innerHeight-top-(mob?80:20)-56)/(per*shH+(mob?8:14))));el.style.setProperty('--z',z.toFixed(3));
+  const lim=shelfLimit();const z=zf||Math.max(.45,Math.min(1,(lim-top-60)/(per*shH+(mob?8:14))));el.style.setProperty('--z',z.toFixed(3));
   const inner=W/z-(mob?12:28)-(mob?16:24)-8;
   const rows=[];
   for(const sh of c.shelves){const out=[[]];let w=0;for(const id of sh.books){const bw=bookW(id,k);if(w+bw>inner&&out.at(-1).length){out.push([]);w=0}out.at(-1).push(id);w+=bw}
@@ -368,7 +368,12 @@ function renderPages(c){const el=$('#case');const mob=matchMedia('(max-width:600
   const pages=[];for(let g=0;g<rows.length;g+=per)pages.push(rows.slice(g,g+per).join(''));
   PAGES=pages.length;PAGE=Math.min(PAGE,PAGES-1);
   el.innerHTML=pages.map((h,i)=>`<div class="page" data-pg="${i}">${h}</div>`).join('');
-  el.scrollLeft=PAGE*(el.clientWidth||W);renderPgNav()}
+  el.scrollLeft=PAGE*(el.clientWidth||W);renderPgNav();
+  // 実際の高さを測って、ページ番号まで画面に収まっていなければ、もう一度だけ縮め直す
+  if(!zf&&el.clientWidth){const nb=($('#pgnav').hidden?el:$('#pgnav')).getBoundingClientRect().bottom+4,h=el.getBoundingClientRect().height;
+    if(nb>lim&&h>0){const z2=Math.max(.45,z*(h-(nb-lim))/h);if(z2<z-.005)renderPages(c,z2)}}}
+/* 本棚が使える下の端：スマホは下のタブの上まで、パソコンは画面の下まで */
+function shelfLimit(){const t=$('#tabs');return getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top-6:innerHeight-8}
 function renderPgNav(){const n=$('#pgnav');n.hidden=PAGES<2;$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1}
 function goPage(i){const el=$('#case');i=Math.max(0,Math.min(PAGES-1,i));if(i===PAGE&&Math.abs(el.scrollLeft-i*el.clientWidth)<2)return false;PAGE=i;el.scrollTo({left:i*el.clientWidth,behavior:'smooth'});renderPgNav();return true}
 $('#case').addEventListener('scroll',()=>{const el=$('#case');if(!el.clientWidth)return;const i=Math.round(el.scrollLeft/el.clientWidth);if(i!==PAGE){PAGE=i;renderPgNav()}},{passive:true});
@@ -833,7 +838,7 @@ async function checkNews(){if(NEWS_RUN)return;const T=targets();const m=$('#nmsg
 // 今の本棚に無いシリーズ・著者（消した本やサンプルの本）の新刊は出さない
 function pruneNews(){if(!S.news?.items)return;const K=new Set(targets().map(t=>t.key));const L=S.news.items.filter(x=>K.has(x.key));if(L.length!==S.news.items.length){S.news.items=L;if(!Object.keys(S.books).length)S.news=null;save()}}
 function renderBadge(){pruneNews();const seen=new Set(S.newsSeen||[]);const n=(S.news?.items||[]).filter(x=>!seen.has(x.isbn)).length;$('[data-v=news]').textContent=n?`選書（${n}）`:'選書'}
-function renderNews(){pruneNews();const N=S.news;const m=$('#nmsg');const today=new Date().toISOString().slice(0,10);
+function renderNews(){fitList();pruneNews();const N=S.news;const m=$('#nmsg');const today=new Date().toISOString().slice(0,10);
   $('#nlast').textContent=N?`最終確認：${new Date(N.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
   const T=targets();$('#ntgt').textContent=`いま追いかけているもの：シリーズ ${T.filter(t=>t.type==='title').length}件、著者 ${T.filter(t=>t.type==='author').length}件（本棚の本から自動）`;
   $('#mutes').innerHTML=(S.mute||[]).map((k,i)=>`<button class="chip" data-um="${i}">${esc(k.slice(2))} <i>戻す</i></button>`).join('')||'<span class="note">なし</span>';
@@ -847,8 +852,16 @@ $('#news').onclick=e=>{const items=S.news?.items||[];const today=new Date().toIS
   const mu=e.target.closest('[data-mute]');if(mu){const n=items[+mu.dataset.mute];S.mute=[...new Set([...(S.mute||[]),n.key])];S.news.items=items.filter(x=>x.key!==n.key);save();renderNews();renderBadge();toast('次から追いません');return}
   const b=e.target.closest('[data-n]');if(!b)return;const n=items[+b.dataset.n];const{key,label,...rest}=n;addBook({...rest,status:n.pubdate>today?'wish':'unread'})};
 /* ---- 選書：切り替え ---- */
-function showSeg(k){S.seg=k;for(const b of document.querySelectorAll('#seg button'))b.setAttribute('aria-pressed',b.dataset.p===k);
-  $('#pNew').hidden=k!=='new';$('#pReco').hidden=k!=='reco';$('#pRank').hidden=k!=='rank';if(k==='reco'&&recoStale())checkReco();if(k==='rank')loadRank(S.rgen||'001')}
+/* 選書：上のボタンなどは固定して、一覧の部分だけをスクロールさせる */
+function fitList(){requestAnimationFrame(()=>{if($('#v-news').hidden)return;const k=S.seg||'new';const L=$({new:'#news',reco:'#reco',rank:'#rank'}[k]);if(!L)return;
+  for(const x of ['#news','#reco','#rank'])if($(x)!==L){$(x).style.maxHeight='';$(x).classList.remove('iscroll')}
+  const sg=$('#seg'),mob=getComputedStyle(sg).position==='fixed';let lim=mob?sg.getBoundingClientRect().top-10:innerHeight-sg.offsetHeight-40;
+  if(k==='new'){const n=$('#nset');if(!n.open)lim-=n.offsetHeight+18;else{L.style.maxHeight='';L.classList.remove('iscroll');return}}
+  if(k==='rank')lim-=$('#rankSet').offsetHeight;
+  const top=L.getBoundingClientRect().top;L.classList.add('iscroll');L.style.maxHeight=Math.max(160,lim-top)+'px'})}
+addEventListener('resize',fitList);$('#nset').addEventListener('toggle',fitList);
+function showSeg(k){scrollTo(0,0);S.seg=k;for(const b of document.querySelectorAll('#seg button'))b.setAttribute('aria-pressed',b.dataset.p===k);
+  $('#pNew').hidden=k!=='new';$('#pReco').hidden=k!=='reco';$('#pRank').hidden=k!=='rank';fitList();if(k==='reco'&&recoStale())checkReco();if(k==='rank')loadRank(S.rgen||'001')}
 $('#seg').onclick=e=>{const b=e.target.closest('[data-p]');if(b){showSeg(b.dataset.p);save()}};
 /* 「読みたい」に直接追加（読みたい棚へ入る） */
 function addWish(n){const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));if(n.isbn&&owned.has(n.isbn))return toast('もう登録されています');
@@ -869,7 +882,7 @@ async function checkReco(){if(RECO_RUN)return;const m=$('#rmsg');const mute=new 
       for(const n of L){seen.add(n.isbn);out.push({...n,key:a.key,label:`${a.q}の本を${a.n}冊持っています`})}}catch(e){fail++}
     await new Promise(r=>setTimeout(r,350))}
   S.reco={t:Date.now(),items:out,fail:fail===A.length};save();RECO_RUN=false;$('#rcheck').disabled=false;renderReco()}
-function renderReco(){const R0=S.reco;const m=$('#rmsg');$('#rlast').textContent=R0?`最終確認：${new Date(R0.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
+function renderReco(){fitList();const R0=S.reco;const m=$('#rmsg');$('#rlast').textContent=R0?`最終確認：${new Date(R0.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
   const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));const items=(R0?.items||[]).filter(x=>!owned.has(x.isbn)&&!(S.mute||[]).includes(x.key));
   if(!RECO_RUN&&R0){m.className='msg'+(R0.fail?' err':'');m.textContent=R0.fail?'つながりませんでした。少し待って「探し直す」を押してください':items.length?`${items.length}冊あります`:'おすすめは見つかりませんでした'}
   $('#reco').innerHTML=items.map(n=>`<div class="rel">${faceHTML(n,100)}<div><b>${esc(n.title)}</b><div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div>
@@ -889,7 +902,7 @@ function rankForm(){const k=S.rakuten||{};($('#rkForm')||$('#rankSet')).innerHTM
   <p class="note">IDとキーはこのiPhoneのアプリの中だけに保存され、ほかの人には見えません（「データ」の書き出しファイルには含まれます）。取り方は ⚙ →「使い方」にあります。</p>`;
   $('#rkSave').onclick=()=>{const id=$('#rkId').value.trim(),key=$('#rkKey').value.trim();if(!id||!key)return toast('IDとアクセスキーの両方を入れてください');S.rakuten={id,key};S.rank={};save();$('#rankSet').innerHTML='';loadRank(S.rgen||'001')};
   if($('#rkCancel'))$('#rkCancel').onclick=()=>{$('#rankSet').innerHTML='';renderRank()}}
-function renderRank(){const g=S.rgen||'001';$('#rgen').innerHTML=RGEN.map(([id,n])=>`<button data-g="${id}" aria-pressed="${id===g}">${n}</button>`).join('');
+function renderRank(){fitList();const g=S.rgen||'001';$('#rgen').innerHTML=RGEN.map(([id,n])=>`<button data-g="${id}" aria-pressed="${id===g}">${n}</button>`).join('');
   const m=$('#rankMsg');$('#rgen').hidden=!S.rakuten?.id;
   if(!S.rakuten?.id){m.className='msg';m.textContent='楽天ブックスのランキングを開きます（ブラウザで開きます）。';
     $('#rank').innerHTML=`<div class="rklinks">${RGEN.map(([id,n])=>`<a class="btnlink" href="https://books.rakuten.co.jp/ranking/hourly/${id}/" target="_blank" rel="noopener">${n}のランキング</a>`).join('')}</div>
@@ -972,14 +985,14 @@ function show(v){if(v==='shelf')scrollTo(0,0);$('#caseMore').hidden=v!=='shelf';
 /* 画面が上下にぶれないようにする：本棚は上下に動かさない。ほかの画面も、中身が画面に収まる時は動かさない（はみ出す時だけ上下にスクロール） */
 let TX=0,TY=0;
 document.addEventListener('touchstart',e=>{const t=e.touches[0];TX=t.clientX;TY=t.clientY},{passive:true});
-document.addEventListener('touchmove',e=>{if(D?.on||e.touches.length>1)return;if(e.target.closest('.panel,.menu,#viewer:not([hidden]),.scan'))return;
+document.addEventListener('touchmove',e=>{if(D?.on||e.touches.length>1)return;if(e.target.closest('.panel,.menu,#viewer:not([hidden]),.scan'))return;const sc=e.target.closest('.iscroll');if(sc&&sc.scrollHeight>sc.clientHeight+1)return;
   const t=e.touches[0];if(Math.abs(t.clientY-TY)<=Math.abs(t.clientX-TX))return;
-  const el=document.scrollingElement;if(!$('#v-shelf').hidden||el.scrollHeight<=innerHeight+2)e.preventDefault()},{passive:false});
+  const el=document.scrollingElement;const nl=!$('#v-news').hidden&&$('#v-news .iscroll')&&!$('#nset').open&&!$('#rankSet details[open]');if(!$('#v-shelf').hidden||nl||el.scrollHeight<=innerHeight+2)e.preventDefault()},{passive:false});
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v52';let updAt=0;
+const APP_V='hondana-v53';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
