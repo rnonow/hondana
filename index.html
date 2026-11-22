@@ -113,7 +113,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 [hidden]{display:none!important}
 .selbar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:10px;max-width:1240px}
 .selbar button{padding:6px 12px;min-height:38px}
-#selMode[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+#serDrag[aria-pressed=true],#selMode[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
 .bk.sel{transform:translateY(-8px)}.bk.sel>*{outline:3px solid #ffb703;outline-offset:1px}
 .ghost .cnt{position:absolute;top:-10px;right:-10px;z-index:3;background:var(--acc);color:#fff;font-size:13px;font-weight:700;border-radius:99px;padding:2px 8px}
 .case,.tray .row,.face,.spine,.ghost,.scan{forced-color-adjust:none}
@@ -166,9 +166,10 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <button id="caseRen">名前変更</button>
       <button id="shelfNew">段を追加</button>
       <button id="caseDel">本棚を削除</button>
+      <button id="serDrag" aria-pressed="true">シリーズまとめて動かす</button>
       <button id="selMode" aria-pressed="false">まとめて選ぶ</button>
     </div>
-    <p class="note">本を長押し（パソコンはドラッグ）すると持ち上がり、好きな段・位置へ動かせます。タップで詳細を開き「表紙を見せて飾る」にすると面陳になります。</p>
+    <p class="note">本を長押し（パソコンはドラッグ）すると持ち上がり、好きな段・位置へ動かせます。マンガなど同じ段にある同じシリーズは、まとめて巻数順に動きます（1冊だけ動かしたいときは「シリーズまとめて動かす」をオフに）。タップで詳細を開き「表紙を見せて飾る」にすると面陳になります。</p>
     <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button>
       <p class="note" style="flex-basis:100%;margin:0">本をタップして選び、選んだ本のどれかを長押し（パソコンはドラッグ）すると、まとめて動かせます。</p></div>
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
@@ -245,7 +246,8 @@ function seriesOf(b){if(b.series)return b.series.trim();const t=cleanTitle(z2h(b
 const byVol=(a,b)=>seriesOf(S.books[a]).localeCompare(seriesOf(S.books[b]),'ja')||volOf(S.books[a])-volOf(S.books[b]);
 /* ---- 本の見た目 ---- */
 /* 背表紙は単色。同じシリーズは色・高さ・幅がそろう。色は 本ごとの指定 → シリーズの指定 → 自動 の順 */
-const skey=b=>z2h(seriesOf(b)).toLowerCase().replace(/[\s　]+/g,'');
+// 書名の表記ゆれ（スペース・記号・全角半角）があっても同じシリーズとして扱う
+const skey=b=>z2h(seriesOf(b)).toLowerCase().replace(/[\s　・.,:：!！?？『』「」()（）\-]/g,'');
 function look(b,own=true){const k=skey(b),h=hash(k||b.isbn||b.title);const st=(S.seriesStyle||{})[k];
   const p=own&&b.color?[b.color,b.tcolor||'#ffffff']:st?[st.c,st.t]:PAL[h%PAL.length];
   return {c:p[0],t:p[1],h:170,w:30+(hash(k+'w')%4)*6}} // 高さは見栄え重視で全冊そろえる
@@ -266,7 +268,7 @@ function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
 
 /* ---- 本棚 ---- */
 function renderSampleBar(){const L=S.sampleKeep?[]:sampleBooks();$('#sampleBar').hidden=!L.length;$('#sampleTxt').textContent=`最初から入っていたサンプルの本が${L.length}冊残っています。`;$('#emptyNote').hidden=Object.keys(S.books).length>0}
-function renderShelf(){renderSampleBar();
+function renderShelf(){renderSampleBar();renderSerDrag();
   $('#caseSel').innerHTML=S.cases.map(c=>`<option value="${c.id}" ${c.id===S.cur?'selected':''}>${esc(c.name)}</option>`).join('');
   const c=curCase();
   $('#case').innerHTML=c.shelves.map(s=>`<div class="shelf"><button class="sname" data-sid="${s.id}" title="段の名前を変更・削除">${esc(s.name)}</button>
@@ -284,6 +286,8 @@ function renderSel(){$('#selbar').hidden=!SELMODE;$('#selMode').setAttribute('ar
   for(const el of document.querySelectorAll('#v-shelf .bk'))el.classList.toggle('sel',SEL.has(el.dataset.id))}
 $('#sampleKeep').onclick=()=>{S.sampleKeep=true;save();renderSampleBar()};
 $('#sampleDel').onclick=()=>{const L=sampleBooks();confirmP(`次の${L.length}冊を消します。自分で登録した本は消えません。\n${L.map(b=>'・'+b.title).join(' ')}`,()=>{for(const b of L){removeEverywhere(b.id);delete S.books[b.id]}save();renderAll();toast(`サンプルの本を${L.length}冊消しました`)})};
+function renderSerDrag(){$('#serDrag').setAttribute('aria-pressed',S.serDrag!==false)}
+$('#serDrag').onclick=()=>{S.serDrag=S.serDrag===false;save();renderSerDrag();toast(S.serDrag?'シリーズの本はまとめて動きます':'1冊ずつ動きます')};
 $('#selMode').onclick=()=>{SELMODE=!SELMODE;if(!SELMODE)SEL.clear();renderSel()};
 $('#selClr').onclick=()=>{SEL.clear();SELMODE=false;renderSel()};
 $('#selColor').onclick=()=>{if(!SEL.size)return toast('先に本を選んでください');const f=S.books[[...SEL][0]];const L=look(f);
@@ -300,11 +304,15 @@ $('#selSeries').onclick=()=>{if(!SEL.size)return toast('先にシリーズの本
 $('#selSort').onclick=()=>{if(SEL.size<2)return toast('2冊以上選んでください');
   const slots=[...S.cases.flatMap(c=>c.shelves.map(s=>s.id)),'tray'];const sid=slots.find(x=>listOf(x).some(id=>SEL.has(id)));const at=listOf(sid).findIndex(id=>SEL.has(id));
   const ids=[...SEL].sort(byVol);for(const id of ids)removeEverywhere(id);listOf(sid).splice(at,0,...ids);save();renderShelf();toast('巻数順に並べました')};
+/* 同じ段にある同じシリーズ（巻のある本）をまとめて返す。1冊だけなら null */
+function sameShelfSeries(id){const b=S.books[id];if(!b||!volOf(b))return null;const k=skey(b);
+  const sid=[...S.cases.flatMap(c=>c.shelves.map(x=>x.id)),'tray'].find(x=>listOf(x).includes(id));if(!sid)return null;
+  const L=listOf(sid).filter(x=>S.books[x]&&skey(S.books[x])===k);return L.length>1?L:null}
 /* ドラッグ：マウスはそのまま、タッチは長押し（約0.4秒）で持ち上げる */
 let D=null;
 function startDrag(x,y){D.on=true;const r=D.el.getBoundingClientRect();D.dx=x-r.left;D.dy=y-r.top;
-  D.group=SEL.has(D.id)&&SEL.size>1?[...SEL]:null;
-  D.g=D.el.cloneNode(true);D.g.classList.remove('lift','sel');D.g.classList.add('ghost');if(D.group){D.g.insertAdjacentHTML('beforeend',`<span class="cnt">${D.group.length}冊</span>`);for(const el of document.querySelectorAll('#v-shelf .bk.sel'))el.classList.add('dragging')}document.body.append(D.g);
+  D.group=SEL.has(D.id)&&SEL.size>1?[...SEL]:(!SELMODE&&S.serDrag!==false)?sameShelfSeries(D.id):null;D.gs=new Set(D.group||[]);
+  D.g=D.el.cloneNode(true);D.g.classList.remove('lift','sel');D.g.classList.add('ghost');if(D.group){D.g.insertAdjacentHTML('beforeend',`<span class="cnt">${D.group.length}冊</span>`);for(const el of document.querySelectorAll('#v-shelf .bk'))if(D.gs.has(el.dataset.id))el.classList.add('dragging')}document.body.append(D.g);
   D.g.style.left=r.left+'px';D.g.style.top=r.top+'px';D.el.classList.add('dragging');document.body.classList.add('dragging');
   D.m=document.createElement('div');D.m.className='mark'}
 function endDrag(){if(!D)return;clearTimeout(D.timer);D.el.classList.remove('lift','dragging');for(const el of document.querySelectorAll('#v-shelf .bk.dragging'))el.classList.remove('dragging');document.body.classList.remove('dragging');D.g?.remove();D.m?.remove()}
@@ -324,7 +332,7 @@ document.addEventListener('pointermove',e=>{
   D.g.style.left=e.clientX-D.dx+'px';D.g.style.top=e.clientY-D.dy+'px';
   const row=document.elementFromPoint(e.clientX,e.clientY)?.closest('.row');
   if(!row){D.m.remove();D.to=null}else{
-  const kids=[...row.querySelectorAll('.bk')].filter(k=>k!==D.el&&!(D.group&&SEL.has(k.dataset.id)));
+  const kids=[...row.querySelectorAll('.bk')].filter(k=>k!==D.el&&!D.gs.has(k.dataset.id));
   let i=kids.findIndex(k=>{const r=k.getBoundingClientRect();return e.clientX<r.left+r.width/2});
   if(i<0)i=kids.length;
   row.querySelector('.empty')?.setAttribute('hidden','');
@@ -463,6 +471,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
   $('#look').onclick=go;$('#isbn').onkeydown=e=>{if(e.key==='Enter')go()};
   const save1=()=>{readForm(b);if(!b.title){toast('タイトルを入れてください');return false}
     const w=$('#where').value;const extra=(SER.list||[]).filter((x,i)=>SER.on.has(i)).map(x=>({id:uid(),isbn:x.isbn,title:x.title,author:x.author||b.author,publisher:x.publisher,pubdate:x.pubdate,status:b.status,mode:'spine',memo:'',cover:'',added:Date.now(),series:b.series||''}));
+    if(extra.length&&b.color){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c:b.color,t:b.tcolor||'#ffffff'};delete b.color;delete b.tcolor}
     const all=[b,...extra].sort((x,y)=>volOf(x)-volOf(y));for(const x of all){S.books[x.id]=x}listOf(w).push(...all.map(x=>x.id));
     S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(extra.length?`「${seriesOf(b)}」${all.length}冊を追加しました`:`「${b.title}」を追加しました`);return true};
   $('#aSave').onclick=save1;
@@ -630,6 +639,13 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>show(location.hash.slice(1)||'shelf'));
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(newsStale()&&Object.keys(S.books).length)setTimeout(()=>checkNews(),2500);
+/* 一度だけ：シリーズの色をそろえる（以前の版で一括登録した本の色がばらばらだったため） */
+if(!S.mig2){const nk=k=>k.replace(/[\s　・.,:：!！?？『』「」()（）\-]/g,'');const st={};for(const [k,v] of Object.entries(S.seriesStyle||{}))st[nk(k)]=v;S.seriesStyle=st;
+  const G={};for(const b of Object.values(S.books)){if(!volOf(b))continue;(G[skey(b)]??=[]).push(b)}
+  for(const [k,L] of Object.entries(G)){if(L.length<2||st[k])continue;const own=L.filter(b=>b.color);if(!own.length||own.length===L.length)continue;
+    const n={};for(const b of own){const c=b.color+'|'+(b.tcolor||'#ffffff');n[c]=(n[c]||0)+1}const [c,t]=Object.entries(n).sort((a,b)=>b[1]-a[1])[0][0].split('|');
+    st[k]={c,t};for(const b of L){delete b.color;delete b.tcolor}}
+  S.mig2=true;save()}
 renderAll();show(['shelf','list','news'].includes(location.hash.slice(1))?location.hash.slice(1):'shelf');
 }
 </script>
