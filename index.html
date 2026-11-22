@@ -21,11 +21,13 @@
    COLOUR/TYPE: 深い壁色＋胡桃材＋背表紙の色。Zen Kaku Gothic New
    LAYOUT: 上に細いツールバー、中央に本棚、右から詳細パネル */
 :root{color-scheme:light dark;
---wall:light-dark(#e7e2d8,#1d2326);--ink:light-dark(#22201c,#ece7de);--mute:light-dark(#6d675e,#a29b90);
---panel:light-dark(#fffdf8,#272e31);--line:light-dark(#d6cfc2,#3a4347);
---wood:light-dark(#8a5a35,#6b4427);--wood2:light-dark(#6e4526,#4f3019);--woodhi:light-dark(#b07c4f,#8a5b36);
---back:light-dark(#3b2a1e,#1a120c);--acc:#d9482b;--ok:#2f7d5b;--k:1}
-:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+--wall:#e7e2d8;--ink:#22201c;--mute:#6d675e;
+--panel:#fffdf8;--line:#d6cfc2;
+--wood:#8a5a35;--wood2:#6e4526;--woodhi:#b07c4f;
+--back:#3b2a1e;--acc:#d9482b;--tray:#d9d2c5;--ok:#2f7d5b;--k:1}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--wall:#1d2326;--ink:#ece7de;--mute:#a29b90;--panel:#272e31;--line:#3a4347;--wood:#6b4427;--wood2:#4f3019;--woodhi:#8a5b36;--back:#1a120c;--tray:#151a1c}}
+:root[data-theme=dark]{color-scheme:dark;--wall:#1d2326;--ink:#ece7de;--mute:#a29b90;--panel:#272e31;--line:#3a4347;--wood:#6b4427;--wood2:#4f3019;--woodhi:#8a5b36;--back:#1a120c;--tray:#151a1c}
+:root[data-theme=light]{color-scheme:light}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--wall);color:var(--ink);font:15px/1.55 "Zen Kaku Gothic New",system-ui,sans-serif;overflow-x:clip}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -76,7 +78,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .mark{flex:none;width:4px;height:150px;background:var(--acc);border-radius:2px;box-shadow:0 0 0 3px #d9482b55}
 .tray{margin-top:22px;max-width:1240px}
 .tray h3,.sec h3{font-size:16px;margin:0 0 6px}
-.tray .row{background:light-dark(#d9d2c5,#151a1c);box-shadow:inset 0 4px 10px #0003;min-height:170px;border-radius:6px}
+.tray .row{background:var(--tray);box-shadow:inset 0 4px 10px #0003;min-height:170px;border-radius:6px}
 .tray .empty{color:var(--mute);opacity:1}
 /* パネル */
 .panel{position:fixed;inset:0 0 0 auto;width:min(420px,100%);background:var(--panel);box-shadow:-20px 0 40px #0005;padding:20px;overflow:auto;z-index:40;translate:105% 0;visibility:hidden;transition:translate .25s,visibility .25s}
