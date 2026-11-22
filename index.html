@@ -50,7 +50,7 @@ main{padding:0 max(3vw,14px) 40px}
 .case{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;padding:0!important}.case::-webkit-scrollbar{display:none}
 .page{flex:0 0 100%;min-width:0;box-sizing:border-box;scroll-snap-align:start;scroll-snap-stop:always;padding:14px 14px 0}
 .case .row{overflow:hidden}
-.sname .pn{margin-left:6px;opacity:.8}
+.sname .pn{opacity:.8}
 .pgnav{display:flex;align-items:center;justify-content:center;gap:14px;margin:8px 0 0;max-width:1240px}.pgnav[hidden]{display:none}
 .pgnav button{min-width:44px;min-height:36px;border-radius:18px;font-size:22px;line-height:1;padding:0 10px}.pgnav span{font-weight:700;min-width:54px;text-align:center;font-variant-numeric:tabular-nums}
 .case.edgeL{box-shadow:inset 30px 0 24px -20px var(--acc),0 18px 40px -18px #0008}.case.edgeR{box-shadow:inset -30px 0 24px -20px var(--acc),0 18px 40px -18px #0008}
@@ -65,7 +65,7 @@ main{padding:0 max(3vw,14px) 40px}
 body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none}
 .spine{width:calc(var(--w) * var(--k));height:calc(var(--h) * var(--k));background:var(--c);border-radius:2px 2px 0 0;color:var(--t);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10px 0 8px;
  box-shadow:inset 3px 0 4px -2px #fff5,inset -4px 0 5px -2px #0007;overflow:hidden}
-.spine .ti{writing-mode:vertical-rl;font-weight:700;font-size:13px;line-height:1.1;max-height:68%;overflow:hidden;letter-spacing:.06em}
+.spine .ti{writing-mode:vertical-rl;font-weight:700;font-size:13px;line-height:1.1;max-height:100%;overflow:hidden;letter-spacing:.06em}
 .spine .au{writing-mode:vertical-rl;font-size:10px;opacity:.8;max-height:28%;overflow:hidden;white-space:nowrap}
 .spine .bg{position:absolute;inset:-10%;width:120%;height:120%;object-fit:cover;object-position:left center;filter:blur(4px) brightness(.72) saturate(1.15)}
 .spine .ti,.spine .au{position:relative}
@@ -116,6 +116,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .badge.own{background:var(--ok)}
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
+.cchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.cchip{width:38px;height:38px;min-height:0;padding:0;border-radius:50%;background:var(--c);color:var(--t);border:2px solid #0002;font-weight:700}.cchip.on{outline:3px solid var(--acc);outline-offset:2px}
 #seg{position:sticky;bottom:12px;z-index:29;box-shadow:0 6px 20px #0002}#v-news{display:flex;flex-direction:column}#v-news[hidden]{display:none}#seg{order:9;margin:16px 0 0}
 .filters.ctr{flex-direction:column;align-items:center;gap:6px;text-align:center}.filters.ctr .pri{min-width:180px}
 .seg{display:flex;gap:4px;background:var(--line);border-radius:12px;padding:4px;margin:0 0 14px}.seg button{flex:1;border:0;background:none;border-radius:9px;min-height:40px;font-weight:700}
@@ -157,7 +158,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .scan .scanhint{position:absolute;left:0;right:0;bottom:0;margin:0;padding:6px 10px;font-size:13px;color:#fff;background:#0008;text-align:center}
 @media(max-width:600px){
  :root{--k:.82}
- .spine .ti{font-size:11.5px;letter-spacing:0}.spine .au{font-size:9px}
+ .spine .ti{letter-spacing:0}.spine .au{font-size:9px}
  #v-shelf>.note{font-size:12px;margin:0 0 8px}
  h1{font-size:21px;margin:0}header{gap:8px}header .pri{padding:8px 12px}header{gap:6px;flex-wrap:nowrap}.ttl{font-size:19px;letter-spacing:0}header .wide{display:none}.ttlwrap{flex:1 1 auto;margin-right:2px}#findBtn,#gearBtn{min-width:40px;min-height:40px;padding:4px 6px}header .pri{padding:8px 8px;font-size:13px}#caseMore{padding:4px 4px;min-width:28px}header .pri,#ioBtn,#helpBtn{padding:8px 9px;font-size:14px;white-space:nowrap}
  #seg{position:fixed;left:10px;right:10px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:29;margin:0;box-shadow:0 6px 20px #0003}#v-news{padding-bottom:70px}
@@ -274,6 +275,19 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=()=>Math.random().toString(36).slice(2,10);
 const hash=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;return Math.abs(h)};
 const PAL=[['#2d4a6b','#f1e9da'],['#7d2a2a','#f6e7d7'],['#e5c76b','#2a2420'],['#3d6b4f','#f2efe6'],['#ddd5c4','#2c2a26'],['#1f1f22','#e9c46a'],['#b4532a','#fff3e4'],['#5b4b8a','#f3eefc'],['#8fb3c9','#1c2a33'],['#c98b8b','#2b1d1d'],['#f2f0ea','#b4532a'],['#2a6f73','#fbefd9']];
+/* 文字の色：背景の明るさを見て、白か黒の読みやすい方 */
+function ink(c){const m=String(c).match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);if(!m)return '#ffffff';
+  const l=m.slice(1).map(x=>{x=parseInt(x,16)/255;return x<=.03928?x/12.92:((x+.055)/1.055)**2.4});const Y=.2126*l[0]+.7152*l[1]+.0722*l[2];return Y>.3?'#1e1b18':'#ffffff'}
+/* タイトルの言葉からおすすめの色 */
+const KWC=[['赤|紅|血|炎|火|朱|薔薇|バラ','#a8322d'],['青|蒼|海|空|水|雨|波|ブルー','#2f5f8f'],['緑|森|葉|草|樹|林|グリーン','#3d6b4f'],['黒|闇|夜|影|死|殺|鬼|魔','#1f1f22'],['白|雪|氷|冬|雲','#e9e6de'],
+  ['金|黄|光|陽|太陽|月|ゴールド','#d9b24a'],['桜|花|恋|愛|春|キス|ピンク','#e3a1b0'],['紫|すみれ','#5b4b8a'],['茶|珈琲|コーヒー|土|猫|犬','#7a5236'],['銀|鉄|機械|ロボ','#8e979f'],['橙|夕|秋|紅葉|オレンジ','#d9763a'],['星|宇宙|銀河|夢','#23305e'],['風|夏|空|旅','#4f95b8']];
+function kwColor(t){t=String(t||'');let best=null,at=1e9;for(const [w,c] of KWC){const m=t.match(new RegExp(w));if(m&&m.index<at){at=m.index;best=c}}return best}
+/* 写真の表紙から、多く使われている色をいくつか取り出す（自分で撮った写真だけ。ネットの表紙画像はブラウザの制限で色を読めない） */
+function photoColors(src){return new Promise(ok=>{if(!src||!/^data:|^blob:/.test(src))return ok([]);const im=new Image();im.onload=()=>{try{const cv=document.createElement('canvas');cv.width=cv.height=32;const g=cv.getContext('2d');g.drawImage(im,0,0,32,32);
+    const d=g.getImageData(0,0,32,32).data,B={};for(let i=0;i<d.length;i+=4){const r=d[i],gg=d[i+1],b=d[i+2];const k=(r>>5)+','+(gg>>5)+','+(b>>5);const mx=Math.max(r,gg,b),mn=Math.min(r,gg,b);const w=1+(mx-mn)/64;const o=(B[k]??={n:0,r:0,g:0,b:0});o.n+=w;o.r+=r*w;o.g+=gg*w;o.b+=b*w}
+    const hx=v=>Math.round(v).toString(16).padStart(2,'0');ok(Object.values(B).sort((a,b)=>b.n-a.n).slice(0,4).map(o=>'#'+hx(o.r/o.n)+hx(o.g/o.n)+hx(o.b/o.n)))}catch(e){ok([])}};im.onerror=()=>ok([]);im.src=src})}
+function recoColors(b,extra=[]){const L=[...extra,kwColor(b.title),(S.seriesStyle||{})[skey(b)]?.c,PAL[hash(skey(b)||b.isbn||b.title)%PAL.length][0],'#2d4a6b','#7d2a2a','#3d6b4f','#e5c76b','#1f1f22','#ddd5c4','#5b4b8a','#b4532a'].filter(Boolean);return [...new Set(L)].slice(0,9)}
+function chipsHTML(cs,cur){return cs.map(c=>`<button type="button" class="cchip${c===cur?' on':''}" data-cc="${c}" style="--c:${c};--t:${ink(c)}" aria-label="${c}">あ</button>`).join('')}
 const ST={unread:'積読',reading:'読書中',done:'読了',wish:'読みたい'};
 
 /* 初回は空の本棚から始める */
@@ -303,8 +317,8 @@ const byVol=(a,b)=>seriesOf(S.books[a]).localeCompare(seriesOf(S.books[b]),'ja')
 // 書名の表記ゆれ（スペース・記号・全角半角）があっても同じシリーズとして扱う
 const skey=b=>z2h(seriesOf(b)).toLowerCase().replace(/[\s　・.,:：!！?？『』「」()（）\-]/g,'');
 function look(b,own=true){const k=skey(b),h=hash(k||b.isbn||b.title);const st=(S.seriesStyle||{})[k];
-  const p=own&&b.color?[b.color,b.tcolor||'#ffffff']:st?[st.c,st.t]:PAL[h%PAL.length];
-  return {c:p[0],t:p[1],h:170,w:30+(hash(k+'w')%4)*6}} // 高さは見栄え重視で全冊そろえる
+  const p=own&&b.color?[b.color]:st?[st.c]:[kwColor(b.title)||PAL[h%PAL.length][0]];
+  return {c:p[0],t:ink(p[0]),h:170,w:34}} // 高さは見栄え重視で全冊そろえる
 const seriesBooks=b=>{const k=skey(b);return Object.values(S.books).filter(x=>skey(x)===k)};
 /* 表紙画像：自分で選んだ画像 → ISBNから Google ブックスの表紙画像（画像がない本は灰色の仮画像が返るので、幅で見分けて外す） */
 const coverSrc=b=>b.cover||(b.isbn&&/^97[89]\d{10}$/.test(b.isbn)?`https://books.google.com/books/content?vid=ISBN${b.isbn}&printsec=frontcover&img=1&zoom=1&fife=w400`:'');
@@ -321,12 +335,12 @@ function coverHTML(b){const src=coverSrc(b);
     (src?`<img src="${esc(src)}" alt="" loading="lazy" ${b.cover?(/^https?:/.test(b.cover)&&gUrl(b.isbn)?`data-alt="${esc(gUrl(b.isbn))}"`:''):'data-g="1"'} ${IMG_ON}>`:'');}
 function faceHTML(b,fh){const L=look(b);return `<div class="face" style="--c:${L.c};--t:${L.t};--fh:${fh||L.h}px">${coverHTML(b)}</div>`}
 const tcy=t=>esc(t).replace(/(?<![\d&#])\d{1,3}(?!\d|;)/g,'<span class="tcy">$&</span>');
-const tiSize=t=>{const n=[...String(t||'')].length;return n>14?' style="font-size:10px"':n>10?' style="font-size:11px"':''};
+const tiSize=t=>{const n=[...String(t||'')].length;return n>26?' style="font-size:9px"':n>13?' style="font-size:10px"':n>9?' style="font-size:11.5px"':''};
 function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
   const src=coverSrc(b);
   const inner=b.mode==='face'?faceHTML(b,L.h):
-    b.spine?`<div class="spine photo" style="--c:${L.c};--h:${L.h}px;--w:${b.spineW||L.w}px"><img src="${esc(b.spine)}" alt=""></div>`:
-    `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px"><span class="ti"${tiSize(b.title)}>${tcy(b.title)}</span><span class="au">${tcy(b.author)}</span></div>`;
+    b.spine?`<div class="spine photo" style="--c:${L.c};--h:${L.h}px;--w:${L.w}px"><img src="${esc(b.spine)}" alt=""></div>`:
+    `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px"><span class="ti"${tiSize(b.title)}>${tcy(b.title)}</span></div>`;
   return `<div class="bk st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
 
 /* ---- 本棚 ---- */
@@ -336,20 +350,18 @@ const bottomList=()=>{const c=curCase();return c.shelves[c.shelves.length-1].boo
 function sweepTray(){const t=(S.tray||[]).filter(id=>S.books[id]&&!S.cases.some(c=>c.shelves.some(x=>x.books.includes(id))));S.tray=[];if(t.length){bottomList().push(...t);save()}return t.length}
 /* 本棚をページに分けて、本のように左右にめくる。1ページ＝最大3段、段の本は幅に収まる分ずつ次のページへ続く */
 let PAGE=0,PAGES=1,PW=0;
-function bookW(id,k){const b=S.books[id];if(!b)return 0;const L=look(b);return (b.mode==='face'?L.h*k*.7+12:(b.spine?(b.spineW||L.w):L.w)*k)+2}
+function bookW(id,k){const b=S.books[id];if(!b)return 0;const L=look(b);return (b.mode==='face'?L.h*k*.7+12:L.w*k)+2}
 function renderPages(c){const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
   const k=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k'))||1;
   const W=el.clientWidth||Math.min(document.querySelector('main').clientWidth,1240);PW=W;
   const inner=W-(mob?12:28)-(mob?16:24)-8;const shH=mob?200:240;
   const top=Math.max(110,Math.min(240,el.getBoundingClientRect().top+scrollY||110));
   const per=Math.max(1,Math.min(3,Math.floor((innerHeight-top-(mob?100:40)-36)/shH)));
-  const pages=[];
-  for(let g=0;g<c.shelves.length;g+=per){const grp=c.shelves.slice(g,g+per);
-    const ch=grp.map(sh=>{const out=[[]];let w=0;for(const id of sh.books){const bw=bookW(id,k);if(w+bw>inner&&out.at(-1).length){out.push([]);w=0}out.at(-1).push(id);w+=bw}return out});
-    const n=Math.max(...ch.map(x=>x.length));
-    for(let i=0;i<n;i++)pages.push(grp.map((sh,j)=>{const part=ch[j][i]||[],nx=ch[j][i+1]?.[0]||'';
-      return `<div class="shelf"><button class="sname" data-sid="${sh.id}" title="段の名前を変更・削除">${esc(sh.name)}${n>1&&ch[j].length>1?`<span class="pn">${i+1}/${ch[j].length}</span>`:''}</button>
-      <div class="row" data-shelf="${sh.id}" data-next="${nx}">${part.map(bookHTML).join('')||(i===0&&!sh.books.length?'<span class="empty">ここに本をドラッグ</span>':'')}</div><div class="board"></div></div>`}).join(''))}
+  const rows=[];
+  for(const sh of c.shelves){const out=[[]];let w=0;for(const id of sh.books){const bw=bookW(id,k);if(w+bw>inner&&out.at(-1).length){out.push([]);w=0}out.at(-1).push(id);w+=bw}
+    out.forEach((part,i)=>rows.push(`<div class="shelf"><button class="sname" data-sid="${sh.id}" title="段の名前を変更・削除">${esc(sh.name)}${i?'<span class="pn">のつづき</span>':''}</button>
+      <div class="row" data-shelf="${sh.id}" data-next="${out[i+1]?.[0]||''}">${part.map(bookHTML).join('')||'<span class="empty">ここに本をドラッグ</span>'}</div><div class="board"></div></div>`))}
+  const pages=[];for(let g=0;g<rows.length;g+=per)pages.push(rows.slice(g,g+per).join(''));
   PAGES=pages.length;PAGE=Math.min(PAGE,PAGES-1);
   el.innerHTML=pages.map((h,i)=>`<div class="page" data-pg="${i}">${h}</div>`).join('');
   el.scrollLeft=PAGE*(el.clientWidth||W);renderPgNav()}
@@ -395,12 +407,12 @@ $('#selMode').onclick=()=>{SELMODE=!SELMODE;if(!SELMODE)SEL.clear();renderSel()}
 $('#selClr').onclick=()=>{SEL.clear();SELMODE=false;renderSel()};
 $('#selColor').onclick=()=>{if(!SEL.size)return toast('先に本を選んでください');const f=S.books[[...SEL][0]];const L=look(f);
   openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の背表紙の色</h2>
-   <div class="two"><div class="fld"><label>背表紙の色</label><input type="color" id="mc" value="${L.c}" style="height:48px;padding:2px"></div><div class="fld"><label>文字の色</label><input type="color" id="mt" value="${L.t}" style="height:48px;padding:2px"></div></div>
+   <div class="fld"><label>背表紙の色（文字の色は自動）</label><div class="cchips">${chipsHTML(recoColors(f),L.c)}<input type="color" id="mc" value="${L.c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
    <div class="prev" style="gap:4px" id="mprev"></div>
    <div class="btns"><button class="pri" id="mOk">まとめて変える</button><button id="mReset">自動の色に戻す</button></div>`);
-  const pv=()=>{$('#mprev').innerHTML=[...SEL].slice(0,8).map(id=>{const b=S.books[id],l=look(b);return `<div class="spine" style="--k:1;--c:${$('#mc').value};--t:${$('#mt').value};--h:${l.h}px;--w:${l.w}px"><span class="ti">${esc(b.title)}</span></div>`}).join('')};
-  pv();$('#mc').oninput=pv;$('#mt').oninput=pv;
-  $('#mOk').onclick=()=>{for(const id of SEL){S.books[id].color=$('#mc').value;S.books[id].tcolor=$('#mt').value}save();renderShelf();renderSel();closePanel();toast('色を変えました')};
+  const pv=()=>{$('#mprev').innerHTML=[...SEL].slice(0,8).map(id=>{const b=S.books[id],l=look(b);return `<div class="spine" style="--k:1;--c:${$('#mc').value};--t:${ink($('#mc').value)};--h:${l.h}px;--w:${l.w}px"><span class="ti">${esc(b.title)}</span></div>`}).join('')};
+  pv();$('#mc').oninput=pv;
+  $('#mOk').onclick=()=>{for(const id of SEL){S.books[id].color=$('#mc').value;delete S.books[id].tcolor}save();renderShelf();renderSel();closePanel();toast('色を変えました')};
   $('#mReset').onclick=()=>{for(const id of SEL){delete S.books[id].color;delete S.books[id].tcolor;if(S.seriesStyle)delete S.seriesStyle[skey(S.books[id])]}save();renderShelf();renderSel();closePanel();toast('自動の色に戻しました')}};
 $('#selStatus').onclick=()=>{if(!SEL.size)return toast('先に本を選んでください');
   openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の状態を変える</h2><p class="msg">積読・読書中にするとそれぞれの棚へ、読了にすると積読・読書中の棚から本棚の一番下の段へ移ります。</p><div class="btns">${Object.entries(ST).map(([k,v])=>`<button data-st="${k}">${v}</button>`).join('')}</div>`);
@@ -439,7 +451,7 @@ function vtext(g,t,x,y,maxH,size,color,bold,maxW,minSize){g.save();g.fillStyle=c
 function wrapText(g,t,x,y,w,lh,maxLines){const out=[];let line='';for(const c of [...String(t||'')]){if(g.measureText(line+c).width>w&&line){out.push(line);line=c}else line+=c}if(line)out.push(line);
   out.slice(0,maxLines).forEach((l,i)=>g.fillText(i===maxLines-1&&out.length>maxLines?l.slice(0,-1)+'…':l,x,y+i*lh))}
 async function shelfImage(c,shelves){const H=170,FW=Math.round(H*.7),PAD=24,ROWP=30,GAP=3,BOARD=16,TOP=56;
-  const items=shelves.map(s=>s.books.filter(id=>S.books[id]).map(id=>{const b=S.books[id],L=look(b);return {b,L,w:b.mode==='face'?FW+12:(b.spine?(b.spineW||L.w):L.w)}}));
+  const items=shelves.map(s=>s.books.filter(id=>S.books[id]).map(id=>{const b=S.books[id],L=look(b);return {b,L,w:b.mode==='face'?FW+12:L.w}}));
   const rowW=items.map(r=>r.reduce((a,x)=>a+x.w+GAP,0));const W=Math.max(600,Math.min(4000,Math.max(...rowW,0)+PAD*2+24));
   const RH=H+ROWP+BOARD+14;const Ht=TOP+shelves.length*RH+PAD;
   const imgs=await Promise.all(items.flat().map(async x=>{x.img=x.b.mode==='face'?await coverImg(x.b):x.b.spine?await loadImg(x.b.spine,false):null}));
@@ -458,7 +470,7 @@ async function shelfImage(c,shelves){const H=170,FW=Math.round(H*.7),PAD=24,ROWP
       else if(it.img){g.drawImage(it.img,x,base-H,it.w,H)}
       else{g.fillStyle=L.c;g.fillRect(x,base-H,it.w,H);g.fillStyle='#ffffff40';g.fillRect(x,base-H+6,it.w,2);g.fillRect(x,base-6,it.w,2);
         g.fillStyle='#ffffff30';g.fillRect(x,base-H,2,H);g.fillStyle='#00000040';g.fillRect(x+it.w-3,base-H,3,H);
-        const aH=b.author?Math.min(H*.3,vlen(g,b.author,10)):0;vtext(g,b.title,x+it.w/2,base-H+12,H-26-aH-(aH?8:0),13,L.t,true,it.w-6,9);if(aH)vtext(g,b.author,x+it.w/2,base-12-aH,aH,10,L.t,false,it.w-6,7)}
+        vtext(g,b.title,x+it.w/2,base-H+12,H-24,13,L.t,true,it.w-6,9)}
       x+=it.w+GAP}
     if(!items[ri].length){g.fillStyle='#e8d9c6';g.globalAlpha=.4;g.font='13px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('（空）',W/2,y0+ROWP+H/2);g.globalAlpha=1}
     let bd=g.createLinearGradient(0,base,0,base+BOARD);bd.addColorStop(0,'#b07c4f');bd.addColorStop(.35,'#8a5a35');bd.addColorStop(1,'#6e4526');g.fillStyle=bd;g.fillRect(PAD-6,base,inner+12,BOARD)});
@@ -501,7 +513,7 @@ async function openViewer(){const m=location.hash.match(/^#view=([A-Za-z0-9_-]+)
   let d;try{d=await unpackShare(m[1])}catch(e){V.hidden=false;V.innerHTML=`<p class="msg err">リンクが壊れているようです。もう一度送ってもらってください。</p><button id="vBack">自分の本棚へ</button>`;$('#vBack').onclick=closeViewer;return}
   const st=['unread','done','reading'];const B=[];
   const bk=r=>{const [isbn,title,author,face,c,t,w,s]=r;const i=B.push({isbn,title,author})-1;const b={isbn,title,author,cover:''};
-    const inner=face?`<div class="face" style="--c:${esc(c)};--t:${esc(t)};--fh:170px">${coverHTML(b)}</div>`:`<div class="spine" style="--c:${esc(c)};--t:${esc(t)};--h:170px;--w:${+w||30}px"><span class="ti"${tiSize(title)}>${tcy(title)}</span><span class="au">${tcy(author)}</span></div>`;
+    const inner=face?`<div class="face" style="--c:${esc(c)};--t:${esc(t)};--fh:170px">${coverHTML(b)}</div>`:`<div class="spine" style="--c:${esc(c)};--t:${ink(c)};--h:170px;--w:34px"><span class="ti"${tiSize(title)}>${tcy(title)}</span></div>`;
     return `<div class="bk st-${st[s]||'unread'}" data-vi="${i}" title="${esc(title)}">${inner}</div>`};
   const n=d.s.reduce((a,s)=>a+s[1].length,0);
   V.innerHTML=`<div class="vhead"><h2>${esc(d.n)}</h2><button id="vBack">自分の本棚へ</button></div>
@@ -601,17 +613,20 @@ function form(b){return `
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
   <div class="two"><div class="fld"><label>状態</label><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
   <div class="fld"><label>本棚での見せ方</label><select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
-  <div class="two"><div class="fld"><label>背表紙の色</label><input type="color" id="f-color" value="${look(b).c}" style="height:42px;padding:2px"></div><div class="fld"><label>文字の色</label><input type="color" id="f-tcolor" value="${look(b).t}" style="height:42px;padding:2px"></div></div>
+  <div class="fld"><label>背表紙の色（左ほどおすすめ。文字の色は自動）</label><div class="cchips" id="f-chips">${chipsHTML(recoColors(b),look(b).c)}<input type="color" id="f-color" value="${look(b).c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
   ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}
   <div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>
   <div class="fld"><label>メモ</label><textarea id="f-memo" rows="3">${esc(b.memo)}</textarea></div>`}
 function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol'])b[k]=$('#f-'+k).value.trim();
-  const c=$('#f-color').value,t=$('#f-tcolor').value;const L0=look(b);
-  if(c!==L0.c||t!==L0.t){if($('#f-sall')?.checked){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c,t};for(const x of seriesBooks(b)){delete x.color;delete x.tcolor}delete b.color;delete b.tcolor}else{b.color=c;b.tcolor=t}}
+  const c=$('#f-color').value,t=ink(c);const L0=look(b);
+  if(c!==L0.c){if($('#f-sall')?.checked){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c,t};for(const x of seriesBooks(b)){delete x.color;delete x.tcolor}delete b.color;delete b.tcolor}else{b.color=c;b.tcolor=t}}
   b.isbn=normIsbn(b.isbn)||b.isbn}
+document.addEventListener('click',e=>{const ch=e.target.closest('[data-cc]');if(!ch)return;const box=ch.parentElement;for(const x of box.querySelectorAll('.cchip'))x.classList.toggle('on',x===ch);const inp=box.querySelector('input[type=color]');if(inp){inp.value=ch.dataset.cc;inp.dispatchEvent(new Event('input'))}});
+function photoChips(b,apply=true){photoColors(b.cover).then(cs=>{const box=$('#f-chips');if(!box||!cs.length)return;const inp=$('#f-color');const cur=apply?cs[0]:inp.value;box.innerHTML=chipsHTML(recoColors(b,cs),cur);box.append(inp);if(apply){inp.value=cs[0];toast('表紙の写真からおすすめの色を選びました')}})}
 function bindImg(b){
+  if(b.cover)photoChips(b,false);
   const pick=cb=>{const inp=$('#imgIn');inp.value='';inp.onchange=()=>{const f=inp.files[0];if(f)cb(f)};inp.click()};
-  $('#imgBtn').onclick=()=>pick(f=>shrink(f,360).then(u=>{b.cover=u;$('.prev .face').outerHTML=faceHTML(b,150);toast('表紙を設定しました')}));
+  $('#imgBtn').onclick=()=>pick(f=>shrink(f,360).then(u=>{b.cover=u;$('.prev .face').outerHTML=faceHTML(b,150);toast('表紙を設定しました');photoChips(b)}));
   $('#spBtn').onclick=()=>pick(f=>shrink(f,600,true).then(([u,r])=>{b.spine=u;b.spineW=Math.round(Math.max(16,Math.min(70,look(b).h*r)));toast('背表紙を設定しました。保存すると本棚に反映されます')}));
   const clr=$('#imgClr');if(clr)clr.onclick=()=>{delete b.cover;delete b.spine;delete b.spineW;$('.prev .face').outerHTML=faceHTML(b,150);clr.remove();toast('写真を外しました')}}
 function shrink(f,max=360,ratio=false){return new Promise(r=>{const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);const u=c.toDataURL('image/jpeg',.82);r(ratio?[u,img.width/img.height]:u)};img.src=URL.createObjectURL(f)})}
@@ -688,7 +703,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
   $('#look').onclick=go;$('#isbn').onkeydown=e=>{if(e.key==='Enter')go()};
   const save1=()=>{readForm(b);if(!b.title){toast('タイトルを入れてください');return false}
     const w=$('#where').value;const extra=(SER.list||[]).filter((x,i)=>SER.on.has(i)).map(x=>({id:uid(),isbn:x.isbn,title:x.title,author:x.author||b.author,publisher:x.publisher,pubdate:x.pubdate,status:b.status,mode:'spine',memo:'',cover:'',added:Date.now(),series:b.series||''}));
-    if(extra.length&&b.color){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c:b.color,t:b.tcolor||'#ffffff'};delete b.color;delete b.tcolor}
+    if(extra.length&&b.color){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c:b.color,t:ink(b.color)};delete b.color;delete b.tcolor}
     const all=[b,...extra].sort((x,y)=>volOf(x)-volOf(y));all.forEach((x,i)=>{x.added=Date.now()+i;S.books[x.id]=x});if(LOCK[b.status])all.forEach(placeByStatus);else listOf(w).push(...all.map(x=>x.id));
     S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(extra.length?`「${seriesOf(b)}」${all.length}冊を追加しました`:`「${b.title}」を追加しました`);return true};
   $('#aSave').onclick=save1;
@@ -925,7 +940,8 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>本をタップすると詳細が開きます。「表紙を見せて飾る」にすると表紙が見える置き方になります。背表紙の色もここで変えられます（同じシリーズにまとめて使えます）。</li>
   <li>「読書中」「積読」「読みたい」にした本は、下のタブ「読書中」にあるそれぞれの棚へ自動で入ります（積読は登録順）。3つの棚の間でドラッグすると、状態もその棚に合わせて変わります。読了にすると本棚の一番下の段の最後に移ります。</li>
   <li>本棚の右上の「…」から、本棚や段の追加、画像で保存、共有リンク、まとめて選ぶなどができます。データと使い方は右上の ⚙ にあります。</li>
-  <li>本棚は本のようにページになっています。左右にスワイプ（または下の ‹ › ）でめくります。本を長押しで持ったまま画面の左右の端へ持っていくと、ページがめくれます。</li>
+  <li>背表紙の色は、タイトルの言葉（「海」なら青など）や、自分で撮った表紙の写真からおすすめの色が最初に選ばれます。本をタップして編集すると、おすすめの色から選び直せます。文字の色は背景に合わせて白か黒に自動で変わります。</li>
+  <li>本棚は本のようにページになっています。左右にスワイプ（または下の ‹ › ）でめくります。段に入りきらない本は次の段へ、3段目の続きは次のページへ続きます。本を長押しで持ったまま画面の左右の端へ持っていくと、ページがめくれます。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>選書（新刊・おすすめ）</h3><ul>
   <li>本棚にある本のシリーズと著者から、新しく出た本と発売予定の本を自動で探します。</li>
@@ -959,7 +975,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v39';let updAt=0;
+const APP_V='hondana-v40';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
