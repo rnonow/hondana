@@ -166,6 +166,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <button id="caseRen">名前変更</button>
       <button id="shelfNew">段を追加</button>
       <button id="caseDel">本棚を削除</button>
+      <button id="shotBtn">画像で保存</button>
       <button id="serDrag" aria-pressed="true">シリーズまとめて動かす</button>
       <button id="selMode" aria-pressed="false">まとめて選ぶ</button>
     </div>
@@ -304,6 +305,60 @@ $('#selSeries').onclick=()=>{if(!SEL.size)return toast('先にシリーズの本
 $('#selSort').onclick=()=>{if(SEL.size<2)return toast('2冊以上選んでください');
   const slots=[...S.cases.flatMap(c=>c.shelves.map(s=>s.id)),'tray'];const sid=slots.find(x=>listOf(x).some(id=>SEL.has(id)));const at=listOf(sid).findIndex(id=>SEL.has(id));
   const ids=[...SEL].sort(byVol);for(const id of ids)removeEverywhere(id);listOf(sid).splice(at,0,...ids);save();renderShelf();toast('巻数順に並べました')};
+/* ---- 本棚を画像にする（3段ずつ1枚） ---- */
+const loadImg=(src,cors)=>new Promise(ok=>{if(!src)return ok(null);const i=new Image();if(cors)i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=src;setTimeout(()=>ok(null),6000)});
+async function coverImg(b){if(b.cover)return loadImg(b.cover,!/^(data|blob):/.test(b.cover));const src=coverSrc(b);if(!src)return null;
+  const i=await loadImg(src,true);return i&&i.naturalWidth>130?i:null}
+function vtext(g,t,x,y,maxH,size,color,bold){g.save();g.fillStyle=color;g.font=`${bold?'700 ':''}${size}px "Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif`;g.textAlign='center';g.textBaseline='middle';
+  const rot=c=>/[ -~]/.test(c)||'ー〜～―…'.includes(c);const adv=c=>/[ -~]/.test(c)?g.measureText(c).width+1:size*1.08;
+  const chars=[...String(t||'')];let top=y;const fits=chars.reduce((n,c)=>n+adv(c),0)<=maxH;
+  for(let k=0;k<chars.length;k++){const c=chars[k],a=adv(c);
+    if(!fits&&top+a>y+maxH-size*1.08){g.save();g.translate(x,top+size*.54);g.rotate(Math.PI/2);g.fillText('…',0,0);g.restore();break}
+    if(rot(c)){g.save();g.translate(x,top+a/2);g.rotate(Math.PI/2);g.fillText(c,0,0);g.restore()}else g.fillText(c,x,top+a/2);
+    top+=a}
+  g.restore()}
+function wrapText(g,t,x,y,w,lh,maxLines){const out=[];let line='';for(const c of [...String(t||'')]){if(g.measureText(line+c).width>w&&line){out.push(line);line=c}else line+=c}if(line)out.push(line);
+  out.slice(0,maxLines).forEach((l,i)=>g.fillText(i===maxLines-1&&out.length>maxLines?l.slice(0,-1)+'…':l,x,y+i*lh))}
+async function shelfImage(c,shelves){const H=170,FW=Math.round(H*.7),PAD=24,ROWP=30,GAP=3,BOARD=16,TOP=56;
+  const items=shelves.map(s=>s.books.filter(id=>S.books[id]).map(id=>{const b=S.books[id],L=look(b);return {b,L,w:b.mode==='face'?FW+12:(b.spine?(b.spineW||L.w):L.w)}}));
+  const rowW=items.map(r=>r.reduce((a,x)=>a+x.w+GAP,0));const W=Math.max(600,Math.min(4000,Math.max(...rowW,0)+PAD*2+24));
+  const RH=H+ROWP+BOARD+14;const Ht=TOP+shelves.length*RH+PAD;
+  const imgs=await Promise.all(items.flat().map(async x=>{x.img=x.b.mode==='face'?await coverImg(x.b):x.b.spine?await loadImg(x.b.spine,false):null}));
+  const k=2,cv=document.createElement('canvas');cv.width=W*k;cv.height=Ht*k;const g=cv.getContext('2d');g.scale(k,k);
+  let gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,'#6e4526');gr.addColorStop(.05,'#8a5a35');gr.addColorStop(.95,'#8a5a35');gr.addColorStop(1,'#6e4526');g.fillStyle=gr;g.fillRect(0,0,W,Ht);
+  g.fillStyle='#f6ecdf';g.font='700 20px "Hiragino Sans","Noto Sans JP",sans-serif';g.textBaseline='middle';g.textAlign='left';g.fillText(c.name,PAD,TOP/2);
+  g.font='13px sans-serif';g.textAlign='right';g.globalAlpha=.75;g.fillText(new Date().toLocaleDateString('ja-JP'),W-PAD,TOP/2);g.globalAlpha=1;
+  shelves.forEach((s,ri)=>{const y0=TOP+ri*RH,inner=W-PAD*2;
+    g.fillStyle='#2b1b10';g.fillRect(PAD,y0,inner,H+ROWP);
+    let sh=g.createLinearGradient(0,y0,0,y0+60);sh.addColorStop(0,'#0008');sh.addColorStop(1,'#0000');g.fillStyle=sh;g.fillRect(PAD,y0,inner,60);
+    g.fillStyle='#f3e6d6';g.globalAlpha=.75;g.font='12px sans-serif';g.textAlign='left';g.textBaseline='top';g.fillText(s.name,PAD+8,y0+6);g.globalAlpha=1;
+    let x=PAD+12;const base=y0+ROWP+H;
+    for(const it of items[ri]){const {b,L}=it;
+      if(b.mode==='face'){const fx=x+6,fy=base-H;g.save();g.shadowColor='#000a';g.shadowBlur=10;g.shadowOffsetX=5;g.shadowOffsetY=3;g.fillStyle=L.c;g.fillRect(fx,fy,FW,H);g.restore();
+        if(it.img){g.drawImage(it.img,fx,fy,FW,H)}else{g.fillStyle=L.t;g.font='700 14px "Hiragino Sans","Noto Sans JP",sans-serif';g.textAlign='left';g.textBaseline='top';wrapText(g,b.title,fx+9,fy+11,FW-18,18,4);g.font='11px sans-serif';g.textBaseline='bottom';wrapText(g,b.author,fx+9,fy+H-24,FW-18,13,2)}}
+      else if(it.img){g.drawImage(it.img,x,base-H,it.w,H)}
+      else{g.fillStyle=L.c;g.fillRect(x,base-H,it.w,H);g.fillStyle='#ffffff40';g.fillRect(x,base-H+6,it.w,2);g.fillRect(x,base-6,it.w,2);
+        g.fillStyle='#ffffff30';g.fillRect(x,base-H,2,H);g.fillStyle='#00000040';g.fillRect(x+it.w-3,base-H,3,H);
+        vtext(g,b.title,x+it.w/2,base-H+12,H*.62-6,13,L.t,true);vtext(g,b.author,x+it.w/2,base-H+H*.62+6,H*.38-12,10,L.t,false)}
+      x+=it.w+GAP}
+    if(!items[ri].length){g.fillStyle='#e8d9c6';g.globalAlpha=.4;g.font='13px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('（空）',W/2,y0+ROWP+H/2);g.globalAlpha=1}
+    let bd=g.createLinearGradient(0,base,0,base+BOARD);bd.addColorStop(0,'#b07c4f');bd.addColorStop(.35,'#8a5a35');bd.addColorStop(1,'#6e4526');g.fillStyle=bd;g.fillRect(PAD-6,base,inner+12,BOARD)});
+  return new Promise(ok=>cv.toBlob(ok,'image/png'))}
+let SHOTS=[];
+$('#shotBtn').onclick=async()=>{const c=curCase();if(!c.shelves.some(s=>s.books.length))return toast('この本棚にはまだ本がありません');
+  openPanel(`<button class="x" data-close>閉じる</button><h2>本棚を画像にする</h2><p class="msg" id="shotMsg">画像を作っています…</p><div id="shotList"></div>`);
+  SHOTS.forEach(x=>URL.revokeObjectURL(x.url));SHOTS=[];const n=Math.ceil(c.shelves.length/3);
+  for(let i=0;i<n;i++){const part=c.shelves.slice(i*3,i*3+3);const blob=await shelfImage(c,part);if(!blob)continue;
+    const name=`${c.name}${n>1?'_'+(i+1):''}.png`.replace(/[\\/:*?"<>|]/g,'_');SHOTS.push({blob,name,url:URL.createObjectURL(blob),label:part.map(s=>s.name).join('・')})}
+  if(!$('#shotList'))return;
+  $('#shotMsg').textContent=SHOTS.length>1?`3段ずつ${SHOTS.length}枚の画像にしました。`:'画像にしました。';
+  const canShare=navigator.canShare&&navigator.canShare({files:[new File([SHOTS[0].blob],SHOTS[0].name,{type:'image/png'})]});
+  $('#shotList').innerHTML=`<div class="btns" style="margin:0 0 10px">${canShare?`<button class="pri" id="shotShare">写真に保存・送る${SHOTS.length>1?`（${SHOTS.length}枚）`:''}</button>`:''}<button id="shotDl">ダウンロード</button></div>
+    <p class="note" style="margin:0 0 10px">${canShare?'「写真に保存・送る」を押すと共有メニューが開きます。「画像を保存」で写真アプリに入ります。LINEやメールでそのまま送ることもできます。':'画像を長押しすると保存できます。'}</p>`+
+    SHOTS.map(x=>`<figure style="margin:0 0 14px"><img src="${x.url}" alt="${esc(x.label)}" style="width:100%;border-radius:6px;display:block"><figcaption class="note">${esc(x.label)}</figcaption></figure>`).join('');
+  const files=()=>SHOTS.map(x=>new File([x.blob],x.name,{type:'image/png'}));
+  if($('#shotShare'))$('#shotShare').onclick=async()=>{try{await navigator.share({files:files(),title:c.name})}catch(e){if(e.name!=='AbortError')toast('共有できませんでした。画像を長押しして保存してください')}};
+  $('#shotDl').onclick=()=>{for(const x of SHOTS){const a=document.createElement('a');a.href=x.url;a.download=x.name;document.body.append(a);a.click();a.remove()}}};
 /* 同じ段にある同じシリーズ（巻のある本）をまとめて返す。1冊だけなら null */
 function sameShelfSeries(id){const b=S.books[id];if(!b||!volOf(b))return null;const k=skey(b);
   const sid=[...S.cases.flatMap(c=>c.shelves.map(x=>x.id)),'tray'].find(x=>listOf(x).includes(id));if(!sid)return null;
