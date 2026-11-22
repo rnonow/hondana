@@ -340,11 +340,12 @@ function normIsbn(s){s=String(s||'').replace(/[^0-9Xx]/g,'').toUpperCase();
   return s.length===13?s:''}
 async function lookup(isbn){
   try{const r=await fetch('https://api.openbd.jp/v1/get?isbn='+isbn);const j=await r.json();const s=j?.[0]?.summary;
-    if(s)return {title:[s.title,s.volume].filter(Boolean).join(' '),author:(s.author||'').replace(/／著|\/著|著$/g,'').replace(/[,／]/g,'・'),publisher:s.publisher||'',pubdate:fmtDate(s.pubdate),cover:s.cover||'',src:'openBD'}}catch(e){}
+    if(s)return {title:[s.title,s.volume].filter(Boolean).join(' '),author:obdAuthor(s.author),publisher:s.publisher||'',pubdate:fmtDate(s.pubdate),cover:s.cover||'',src:'openBD'}}catch(e){}
   try{const r=await fetch('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn);const j=await r.json();const v=j.items?.[0]?.volumeInfo;
     if(v)return {title:[v.title,v.subtitle].filter(Boolean).join(' '),author:(v.authors||[]).join('・'),publisher:v.publisher||'',pubdate:v.publishedDate||'',cover:(v.imageLinks?.thumbnail||'').replace('http:','https:'),src:'Google Books'}}catch(e){}
   try{const r=await ndl('isbn='+isbn+'&cnt=5');const n=r.find(x=>x.isbn===isbn)||r[0];if(n)return {...n,isbn,src:'国立国会図書館サーチ'}}catch(e){}
   return null}
+const obdAuthor=t=>{t=String(t||'').replace(/\s*(／|\/)?\s*(著|作|文|絵|訳|編)(?=\s|$)/g,' ').trim();return t.includes(',')?t.split(/\s+/).map(ndlName).filter(Boolean).join('・'):t.replace(/[／]/g,'・')};
 /* 国立国会図書館サーチ OpenSearch（新刊・発売予定も含む） */
 const ndlDate=d=>{d=String(d||'').trim();let m=d.match(/^(\d{4})[-.年](\d{1,2})(?:[-.月](\d{1,2}))?/);if(m)return [m[1],m[2].padStart(2,'0'),m[3]?.padStart(2,'0')].filter(Boolean).join('-');return d.slice(0,4)};
 const ndlName=t=>{t=t.replace(/[\s　]*(著|作|文|絵|訳|編)$/,'').replace(/,\s*\d{4}-(\d{4})?\s*$/,'').trim();const p=t.split(/\s*,\s*/);return /[A-Za-z]/.test(t)?p.reverse().join(' '):p.join('').replace(/\s+/g,'')};
@@ -382,7 +383,9 @@ function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',
     const code=await scanPhoto(f);if(code){$('#isbn').value=code;go()}else{m.textContent='写真から978で始まるバーコードが見つかりませんでした。バーコードを大きく、まっすぐ、ピントを合わせて撮ってください。';m.classList.add('err')}};i.click()};
   if(pre?.autoscan)$('#scanBtn').click();
   const kwgo=async()=>{const q=$('#kw').value.trim();if(!q)return;const m=$('#lmsg'),box=$('#kres');m.className='msg';m.textContent='検索中…';box.innerHTML='';$('#kw').blur();
-    let list=[];try{const seen=new Set();list=(await ndl('any='+encodeURIComponent(q)+'&cnt=60')).filter(n=>n.isbn&&!seen.has(n.isbn)&&seen.add(n.isbn)).slice(0,30)}catch(e){m.textContent='検索できませんでした。少し待ってからもう一度お試しください。';m.classList.add('err');return}
+    let list=[];try{const seen=new Set();const e=encodeURIComponent(q);const [t1,t2]=await Promise.all([ndl('title='+e+'&cnt=40').catch(()=>[]),ndl('any='+e+'&cnt=60')]);
+      const words=q.toLowerCase().split(/[\s　]+/).filter(Boolean);const sc=n=>{const t=n.title.toLowerCase(),a=n.author.toLowerCase();return words.reduce((x,w)=>x+(t.includes(w)?3:0)+(a.includes(w)?2:0),0)+(t.startsWith(words[0])?2:0)};
+      list=[...t1,...t2].filter(n=>n.isbn&&!seen.has(n.isbn)&&seen.add(n.isbn)).map((n,i)=>({n,i,s:sc(n)})).sort((x,y)=>y.s-x.s||x.i-y.i).map(x=>x.n).slice(0,30)}catch(e){m.textContent='検索できませんでした。少し待ってからもう一度お試しください。';m.classList.add('err');return}
     if(!list.length){m.textContent='見つかりませんでした。言葉を変えて試してください。';return}
     m.textContent=`${list.length}件見つかりました。登録したい本を選んでください。`;
     box.innerHTML=list.map((n,i)=>`<div class="rel">${faceHTML(n,84)}<div><b>${esc(n.title)}</b><div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div></div><button data-k="${i}">選ぶ</button></div>`).join('');
