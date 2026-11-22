@@ -48,7 +48,7 @@ main{padding:0 max(3vw,14px) 40px}
 .case{background:linear-gradient(90deg,var(--wood2),var(--wood) 6%,var(--wood) 94%,var(--wood2));padding:14px 14px 0;border-radius:6px 6px 0 0;box-shadow:0 18px 40px -18px #0008;max-width:1240px}
 .shelf{position:relative;margin-bottom:14px}
 .case{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;padding:0!important}.case::-webkit-scrollbar{display:none}
-.page{flex:0 0 100%;min-width:0;box-sizing:border-box;scroll-snap-align:start;scroll-snap-stop:always;padding:14px 14px 0}
+.page{zoom:var(--z,1);flex:0 0 100%;min-width:0;box-sizing:border-box;scroll-snap-align:start;scroll-snap-stop:always;padding:14px 14px 0}
 .case .row{overflow:hidden}
 .sname .pn{opacity:.8}
 .pgnav{display:flex;align-items:center;justify-content:center;gap:14px;margin:8px 0 0;max-width:1240px}.pgnav[hidden]{display:none}
@@ -354,9 +354,10 @@ function bookW(id,k){const b=S.books[id];if(!b)return 0;const L=look(b);return (
 function renderPages(c){const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
   const k=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k'))||1;
   const W=el.clientWidth||Math.min(document.querySelector('main').clientWidth,1240);PW=W;
-  const inner=W-(mob?12:28)-(mob?16:24)-8;const shH=mob?200:240;
-  const top=Math.max(110,Math.min(240,el.getBoundingClientRect().top+scrollY||110));
-  const per=Math.max(1,Math.min(3,Math.floor((innerHeight-top-(mob?100:40)-36)/shH)));
+  // いつも1ページ3段。画面の高さに収まるように、ページ全体を縮める
+  const shH=mob?200:240,per=3;const top=Math.max(60,Math.min(240,el.getBoundingClientRect().top+scrollY||110));
+  const z=Math.max(.5,Math.min(1,(innerHeight-top-(mob?80:20)-56)/(per*shH+(mob?8:14))));el.style.setProperty('--z',z.toFixed(3));
+  const inner=W/z-(mob?12:28)-(mob?16:24)-8;
   const rows=[];
   for(const sh of c.shelves){const out=[[]];let w=0;for(const id of sh.books){const bw=bookW(id,k);if(w+bw>inner&&out.at(-1).length){out.push([]);w=0}out.at(-1).push(id);w+=bw}
     out.forEach((part,i)=>rows.push(`<div class="shelf"><button class="sname" data-sid="${sh.id}" title="段の名前を変更・削除">${esc(sh.name)}${i?'<span class="pn">のつづき</span>':''}</button>
@@ -934,7 +935,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>「読書中」「積読」「読みたい」にした本は、下のタブ「読書中」にあるそれぞれの棚へ自動で入ります（積読は登録順）。3つの棚の間でドラッグすると、状態もその棚に合わせて変わります。読了にすると本棚の一番下の段の最後に移ります。</li>
   <li>本棚の右上の「…」から、本棚や段の追加、画像で保存、共有リンク、まとめて選ぶなどができます。データと使い方は右上の ⚙ にあります。</li>
   <li>背表紙の色は、タイトルの言葉（「海」なら青など）からおすすめの色が最初に選ばれます。本をタップして編集すると、おすすめの色から選び直せます。文字の色は背景に合わせて白か黒に自動で変わります。</li>
-  <li>本棚は本のようにページになっています。左右にスワイプ（または下の ‹ › ）でめくります。段に入りきらない本は次の段へ、3段目の続きは次のページへ続きます。本を長押しで持ったまま画面の左右の端へ持っていくと、ページがめくれます。</li>
+  <li>本棚は本のようにページになっていて、1ページに3段ずつ入ります。左右にスワイプ（または下の ‹ › ）でめくります。段に入りきらない本は次の段へ、3段目の続きは次のページへ続きます。本を長押しで持ったまま画面の左右の端へ持っていくと、ページがめくれます。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>選書（新刊・おすすめ）</h3><ul>
   <li>本棚にある本のシリーズと著者から、新しく出た本と発売予定の本を自動で探します。</li>
@@ -968,7 +969,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v41';let updAt=0;
+const APP_V='hondana-v42';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
