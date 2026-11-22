@@ -212,6 +212,18 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 #caseFlash{position:fixed;left:50%;top:42%;translate:-50% -50%;z-index:60;background:#000b;color:#fff;padding:12px 22px;border-radius:12px;font-size:18px;font-weight:700;pointer-events:none;opacity:0;white-space:nowrap}
 #caseFlash.on{animation:cflash 1.3s ease forwards}@keyframes cflash{0%{opacity:0;scale:.9}15%{opacity:1;scale:1}70%{opacity:1}100%{opacity:0}}
 .btns.col button[aria-pressed=true]{font-weight:700}
+
+#case[data-theme=oak],.sw[data-theme=oak]{--wood:#c49a6c;--wood2:#a87d50;--woodhi:#dcb88c;--back:#5e4530}
+#case[data-theme=white],.sw[data-theme=white]{--wood:#ece8e1;--wood2:#d3cdc3;--woodhi:#faf8f4;--back:#dcd6cb}
+#case[data-theme=black],.sw[data-theme=black]{--wood:#2e2e2e;--wood2:#1c1c1c;--woodhi:#4a4a4a;--back:#141414}
+#case[data-theme=blue],.sw[data-theme=blue]{--wood:#3d5a73;--wood2:#2c4256;--woodhi:#58799a;--back:#1b2631}
+#case[data-theme=white] .sname{color:#4a433a}
+#case[data-theme=white] .row{background:linear-gradient(180deg,#0002,#0000 30%),var(--back);box-shadow:inset 0 6px 12px #0004,inset 6px 0 10px -6px #0004,inset -6px 0 10px -6px #0004}
+.dsgn{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.dsgn button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px}
+.dsgn button[aria-pressed=true]{outline:3px solid var(--acc);font-weight:700}
+.sw{display:block;width:56px;height:40px;border-radius:4px;background:linear-gradient(180deg,var(--back) 0 70%,var(--woodhi) 70% 78%,var(--wood) 78%);border:4px solid var(--wood)}
+.more.dot,#ioBtn.dot{position:relative}.more.dot::after,#ioBtn.dot::after{content:"";position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--acc)}
 </style>
 </head>
 <body>
@@ -224,6 +236,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <button id="caseNew">本棚を追加</button>
       <button id="caseRen">名前変更</button>
       <button id="shelfNew">段を追加</button>
+      <button id="caseDesign">デザイン</button>
       <button id="caseDel">本棚を削除</button>
       <button id="shotBtn">画像で保存</button>
       <button id="linkBtn">共有リンク</button>
@@ -334,7 +347,11 @@ try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 // 自分では1冊も登録していない（サンプルのまま）なら空の本棚にする
 if(!S||!S.cases||S.sample===true){S=emptyState();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 if(!S.cur||!S.cases.find(c=>c.id===S.cur))S.cur=S.cases[0].id;
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('この環境では保存できません')}};
+/* 読了日：読了ではない状態から読了になった時に今日の日付を入れる（自分で日付を入れた時はそのまま） */
+const PREV={},today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+function trackDone(){for(const b of Object.values(S.books||{})){const p=PREV[b.id];if(b.status==='done'&&p&&p.s!=='done'&&(!b.doneAt||b.doneAt===p.d))b.doneAt=today();PREV[b.id]={s:b.status,d:b.doneAt}}}
+trackDone();
+const save=()=>{trackDone();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('この環境では保存できません')}};
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)};
 const curCase=()=>S.cases.find(c=>c.id===S.cur);
 
@@ -400,7 +417,7 @@ function sweepTray(){const t=(S.tray||[]).filter(id=>S.books[id]&&!S.cases.some(
 /* 本棚をページに分けて、本のように左右にめくる。1ページ＝最大3段、段の本は幅に収まる分ずつ次のページへ続く */
 let PAGE=0,PAGES=1,PW=0,VIEW=null;
 function bookW(id,k){const b=S.books[id];if(!b)return 0;const L=look(b);return (b.mode==='face'?L.h*k*.7+12:L.w*k)+2}
-function renderPages(c,zf){$('#viewBar').hidden=!VIEW;if(VIEW)$('#viewTxt').textContent=VIEW.label;$('#pgnav').hidden=false;const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
+function renderPages(c,zf){$('#case').dataset.theme=VIEW?'':(c.theme||'');$('#viewBar').hidden=!VIEW;if(VIEW)$('#viewTxt').textContent=VIEW.label;$('#pgnav').hidden=false;const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
   const k=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k'))||1;
   const W=el.clientWidth||Math.min(document.querySelector('main').clientWidth,1240);PW=W;
   // いつも1ページ3段。画面の高さに収まるように、ページ全体を縮める
@@ -442,6 +459,7 @@ function renderShelf(){fitRead();sweepTray();renderSampleBar();renderSerDrag();
     const L=listOf(k);for(const id of [...L]){const b=S.books[id];if(!b||b.status!==st){L.splice(L.indexOf(id),1);if(b&&!placeOf(id))bottomList().push(id)}}L.sort(byAdded);
     $(row).innerHTML=(k==='tsun'?[...L].reverse().map(pileHTML):L.map(id=>k==='reading'?`<div class="reader">${READER}${bookHTML(id,'face')}</div>`:bookHTML(id,'spine'))).join('')||`<span class="empty">${emp}</span>`;if(k==='tsun')$(row).scrollTop=0;$(nEl).textContent=L.length?`${L.length}冊`:'';
     const out=Object.values(S.books).filter(b=>b.status===st&&!L.includes(b.id));
+    if(k==='reading'){const y=String(new Date().getFullYear()),n=Object.values(S.books).filter(b=>b.status==='done'&&(b.doneAt||'').startsWith(y)).length;if(n)$(nEl).textContent+=`${L.length?'　':''}今年読んだ本 ${n}冊`}
     $(gEl).innerHTML=out.length?`<button data-gather="${k}">ほかの場所にある${lab}の本（${out.length}冊）もここに集める</button>`:''}
 }
 document.addEventListener('click',e=>{const g=e.target.closest('[data-gather]');if(!g)return;const k=g.dataset.gather,st={tsun:'unread',reading:'reading',wish:'wish'}[k];
@@ -653,6 +671,9 @@ document.addEventListener('keydown',e=>{const bk=e.target.closest?.('.bk');if(bk
 
 $('#caseSel').onchange=e=>{S.cur=e.target.value;save();renderShelf()};
 $('#caseNew').onclick=()=>ask('新しい本棚の名前','寝室の本棚',v=>{const c={id:uid(),name:v,shelves:[1,2,3].map(n=>({id:uid(),name:n+'段目',books:[]}))};S.cases.push(c);S.cur=c.id;save();renderShelf()});
+const DESIGNS={walnut:'ウォルナット',oak:'オーク',white:'白',black:'黒',blue:'紺'};
+$('#caseDesign').onclick=()=>{const c=curCase();openPanel(`<button class="x" data-close>閉じる</button><h2>本棚のデザイン</h2><div class="dsgn" id="dsList">${Object.entries(DESIGNS).map(([k,v])=>`<button data-d="${k}" aria-pressed="${(c.theme||'walnut')===k}"><i class="sw" data-theme="${k}"></i>${v}</button>`).join('')}</div>`);
+  $('#dsList').onclick=e=>{const k=e.target.closest('[data-d]')?.dataset.d;if(!k)return;if(k==='walnut')delete c.theme;else c.theme=k;save();renderShelf();for(const x of $('#dsList').children)x.setAttribute('aria-pressed',x.dataset.d===k)}};
 $('#caseRen').onclick=()=>ask('本棚の名前',curCase().name,v=>{curCase().name=v;save();renderShelf()});
 $('#shelfNew').onclick=()=>{const c=curCase();c.shelves.push({id:uid(),name:(c.shelves.length+1)+'段目',books:[]});save();renderShelf()};
 $('#caseDel').onclick=()=>{if(S.cases.length<2)return toast('本棚は最低1つ必要です');const c=curCase();
@@ -679,18 +700,19 @@ function confirmP(t,cb){openPanel(`<button class="x" data-close>閉じる</butto
 
 /* ---- 本の詳細・編集 ---- */
 function form(b,add){return `
-  <div class="prev">${faceHTML(b,150)}<div class="pinfo">${b.title?`<b>${esc(b.title)}</b>${b.author?`<span>${esc(b.author)}</span>`:''}${b.publisher?`<span>${esc(b.publisher)}</span>`:''}${b.pubdate?`<span>${esc(fmtDate(b.pubdate))}</span>`:''}${b.isbn?`<span class="note">ISBN ${esc(b.isbn)}</span>`:''}`:'<span class="note">バーコードを読み取るか、キーワードで探すと、ここに本の情報が出ます</span>'}${b.cover||b.spine?'<button id="imgClr">撮った写真を外す</button>':''}</div></div>
+  <div class="prev">${faceHTML(b,150)}<div class="pinfo">${b.title?`<b>${esc(b.title)}</b>${b.author?`<span>${esc(b.author)}</span>`:''}${b.publisher?`<span>${esc(b.publisher)}</span>`:''}${b.pubdate?`<span>${esc(fmtDate(b.pubdate))}</span>`:''}${b.isbn?`<span class="note">ISBN ${esc(b.isbn)}</span>`:''}${!add&&b.doneAt?`<span class="note">読了日 ${esc(b.doneAt.replace(/-/g,'/'))}</span>`:''}`:'<span class="note">バーコードを読み取るか、キーワードで探すと、ここに本の情報が出ます</span>'}${b.cover||b.spine?'<button id="imgClr">撮った写真を外す</button>':''}</div></div>
   <details class="fixinfo" id="fixinfo"><summary class="note" style="cursor:pointer;min-height:40px;display:flex;align-items:center;margin:0 0 6px">▸ タイトルなどを手で入力・直す</summary>
   <div class="fld"><label>タイトル</label><input id="f-title" value="${esc(b.title)}"></div>
   <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
   ${1?`<div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>`:''}
+  ${add?'':`<div class="fld"><label>読了日（読了にすると自動で入ります）</label><input type="date" id="f-doneAt" value="${esc(b.doneAt||'')}"></div>`}
   </details>
 ${add?`  <div hidden><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>`:`  <div class="two"><div class="fld">${add?'':''}<select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
   <div class="fld">${add?'':''}<select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
   <div class="fld"><div class="cchips one" id="f-chips">${chipsHTML(recoColors(b),look(b).c)}<input type="color" id="f-color" value="${look(b).c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
   ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}`}`}
-function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol']){const el=$('#f-'+k);if(el)b[k]=el.value.trim()}
+function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol','doneAt']){const el=$('#f-'+k);if(el)b[k]=el.value.trim()}
   if(!$('#f-color'))return void(b.isbn=normIsbn(b.isbn)||b.isbn);
   const c=$('#f-color').value,t=ink(c);const L0=look(b);
   if(c!==L0.c){if($('#f-sall')?.checked){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c,t};for(const x of seriesBooks(b)){delete x.color;delete x.tcolor}delete b.color;delete b.tcolor}else{b.color=c;b.tcolor=t}}
@@ -1079,15 +1101,20 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>機種変更やバックアップのときは「データ」→「ファイルに書き出す」で保存し、新しい端末で「ファイルから読み込む」を使います。</li>
   <li>表示が古いときは、ページを閉じて開き直すと新しい版になります。</li></ul></div>`);
 $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</button><h2>データ</h2>
-  <p class="msg">別の端末へ移す時やバックアップには「書き出す」を使います。</p>
+  <p class="msg">${S.lastBackup?`前回の書き出し：${new Date(S.lastBackup).toLocaleDateString('ja-JP')}`:'まだ書き出していません'}（${Object.keys(S.books).length}冊）</p>
   <div class="btns"><button class="pri" id="ex">ファイルに書き出す</button><button id="cp">JSONをコピー</button><button id="im">ファイルから読み込む</button><button id="clr">空にする</button></div>`);
   const json=()=>JSON.stringify(S,null,1);
-  $('#ex').onclick=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json()],{type:'application/json'}));a.download='hondana-'+new Date().toISOString().slice(0,10)+'.json';a.click()}catch(e){toast('書き出しできない環境です。コピーを使ってください')}};
+  $('#ex').onclick=async()=>{const name='hondana-'+today()+'.json',f=new File([json()],name,{type:'application/json'});
+    if(navigator.canShare?.({files:[f]})){try{await navigator.share({files:[f],title:name});S.lastBackup=Date.now();save();renderBackupDot();closePanel();toast('書き出しました。「ファイルに保存」で残せます');return}catch(e){if(e.name==='AbortError')return}}
+    S.lastBackup=Date.now();save();renderBackupDot();try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json()],{type:'application/json'}));a.download='hondana-'+new Date().toISOString().slice(0,10)+'.json';a.click()}catch(e){toast('書き出しできない環境です。コピーを使ってください')}};
   $('#cp').onclick=()=>navigator.clipboard.writeText(json()).then(()=>toast('コピーしました'),()=>toast('コピーできませんでした'));
-  $('#im').onclick=()=>{const i=$('#jsonIn');i.value='';i.onchange=async()=>{try{const d=JSON.parse(await i.files[0].text());if(!d.cases||!d.books)throw 0;S=d;save();renderAll();closePanel();toast('読み込みました')}catch(e){toast('読み込めないファイルです')}};i.click()};
+  $('#im').onclick=()=>{const i=$('#jsonIn');i.value='';i.onchange=async()=>{try{const d=JSON.parse(await i.files[0].text());if(!d.cases||!d.books)throw 0;confirmP(`今のデータ（${Object.keys(S.books).length}冊）を、このファイルの内容（${Object.keys(d.books).length}冊）に置き換えます。`,()=>{S=d;for(const k in PREV)delete PREV[k];trackDone();save();renderAll();renderBackupDot();toast('読み込みました')})}catch(e){toast('読み込めないファイルです')}};i.click()};
   $('#clr').onclick=()=>confirmP('すべての本と本棚を消して空にします。',()=>{S=emptyState();save();renderAll()});
 };
 
+/* バックアップが30日以上ない時は歯車に小さな印 */
+function renderBackupDot(){const n=Object.keys(S.books).length;$('#gearBtn').classList.toggle('dot',n>=5&&Date.now()-(S.lastBackup||0)>30*864e5);$('#ioBtn').classList.toggle('dot',$('#gearBtn').classList.contains('dot'))}
+renderBackupDot();
 /* ---- 画面切替 ---- */
 function renderAll(){renderShelf();renderList();renderNews();renderReco();renderBadge()}
 function show(v){if(v==='shelf'||v==='list')scrollTo(0,0);$('#caseMore').hidden=v!=='shelf';$('#findBtn').setAttribute('aria-pressed',v==='list');for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
@@ -1119,7 +1146,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v74';let updAt=0;
+const APP_V='hondana-v75';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
