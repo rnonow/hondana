@@ -95,7 +95,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .fld{margin-bottom:10px}.fld label{display:block;font-size:13px;color:var(--mute);margin-bottom:3px}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.btns.stick{position:sticky;bottom:-20px;z-index:3;background:var(--panel);margin:12px -20px -20px;padding:10px 20px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -8px 16px -10px #0004;flex-wrap:nowrap}.btns.stick{flex-wrap:wrap}.btns.stick>button{flex:1;min-height:48px}
+.btns.stick,.btns.act{position:sticky;bottom:-20px;z-index:3;background:var(--panel);margin:14px -20px -20px;padding:10px 20px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -8px 16px -10px #0004;flex-wrap:nowrap;flex-direction:row-reverse}.btns.act>button{flex:1;min-height:48px}.btns.stick{flex-wrap:wrap}.btns.stick>button{flex:1;min-height:48px}
 .x{float:right;min-height:36px;padding:4px 12px}
 .prev{display:flex;gap:14px;align-items:flex-end;margin:6px 0 14px}
 .prev .face{--fh:150px;--k:1;margin:0;flex:none}
@@ -121,7 +121,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .badge.own{background:var(--ok)}
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
-.cchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.cchip{width:38px;height:38px;min-height:0;padding:0;border-radius:50%;background:var(--c);color:var(--t);border:2px solid #0002;font-weight:700}.cchip.on{outline:3px solid var(--acc);outline-offset:2px}
+.cchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.cchips.one{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:3px 3px 4px;margin:0 -3px}.cchips.one::-webkit-scrollbar{display:none}.cchips.one>*{flex:none}.cchip{width:38px;height:38px;min-height:0;padding:0;border-radius:50%;background:var(--c);color:var(--t);border:2px solid #0002;font-weight:700}.cchip.on{outline:3px solid var(--acc);outline-offset:2px}
 #seg{position:sticky;bottom:12px;z-index:29;box-shadow:0 6px 20px #0002}#v-news{display:flex;flex-direction:column}#v-news[hidden]{display:none}#seg{order:9;margin:16px 0 0}
 .filters.ctr{flex-direction:column;align-items:center;gap:6px;text-align:center}.filters.ctr .pri{min-width:180px}
 #nlast,#rlast{display:none!important}#v-news .filters.ctr .pri{min-height:38px;padding:6px 18px;font-size:15px}#v-news .pbar{margin:6px 0 2px}#rmsg,#nmsg{margin:4px 0 2px;min-height:0;text-align:center;font-size:12.5px}#v-news .seg.sub{margin-bottom:8px}#v-news .rel{padding:8px 0;gap:10px}
@@ -177,7 +177,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
  .casebar{flex-wrap:nowrap;overflow:visible;margin:0 calc(-1 * max(3vw,14px)) 6px;padding:2px max(3vw,14px);scrollbar-width:none}
  .casebar>*{flex:none}.casebar>.sp{flex:1}.casebar button{padding:6px 12px;font-size:14px}
  .row{min-height:170px;padding:24px 8px 0}.case{margin:0 -6px}.page{padding:8px 6px 0}
- .tray .row{min-height:140px}
+ .tray .row{min-height:calc(170px * var(--k) + 22px)}
+ .btns.stick,.btns.act{bottom:calc(-20px - env(safe-area-inset-bottom));margin:14px -16px calc(-20px - env(safe-area-inset-bottom));padding:10px 16px calc(14px + env(safe-area-inset-bottom))}
  .panel{inset:auto 0 0 0;width:100%;max-height:88dvh;border-radius:18px 18px 0 0;translate:0 105%;box-shadow:0 -10px 40px #0005;padding:14px 16px calc(20px + env(safe-area-inset-bottom))}
  .panel::before{content:"";display:block;width:44px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 10px}
  .toast{bottom:calc(80px + env(safe-area-inset-bottom))}
@@ -216,10 +217,9 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 
 <main>
   <section id="v-shelf">
-    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selStatus">状態を変える</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button>
-      <p class="note" style="flex-basis:100%;margin:0">本をタップして選び、選んだ本のどれかを長押し（パソコンはドラッグ）すると、まとめて動かせます。</p></div>
+    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selStatus">状態を変える</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button></div>
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
-    <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。右上の「＋ 本を追加」から、バーコードやキーワードで登録できます。</p>
+    <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。「＋ 追加」から登録できます。</p>
     <div class="case" id="case"></div>
     <div class="pgnav" id="pgnav" hidden><button id="pgPrev" aria-label="前のページ">‹</button><input type="range" id="pgBar" min="0" max="1" step="1" value="0" aria-label="ページを選ぶ"><span id="pgNo"></span><button id="pgNext" aria-label="次のページ">›</button></div>
   </section>
@@ -383,7 +383,13 @@ $('#case').addEventListener('scroll',()=>{const el=$('#case');if(!el.clientWidth
 $('#pgPrev').onclick=()=>goPage(PAGE-1);
 $('#pgBar').oninput=e=>{const i=+e.target.value;if(i===PAGE)return;const el=$('#case');PAGE=i;el.scrollTo({left:i*el.clientWidth,behavior:'auto'});$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1};$('#pgNext').onclick=()=>goPage(PAGE+1);
 let RSZ;addEventListener('resize',()=>{clearTimeout(RSZ);RSZ=setTimeout(()=>{const w=$('#case').clientWidth;if(w&&Math.abs(w-PW)>4&&!D?.on)renderShelf()},200)});
-function renderShelf(){sweepTray();renderSampleBar();renderSerDrag();
+/* 読書中タブ：3つの棚が1画面に収まるように全体を縮める */
+function fitRead(){requestAnimationFrame(()=>{const v=$('#v-read');if(v.hidden)return;v.style.removeProperty('--k');const t=$('#tabs');
+  const lim=(getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top:innerHeight)-8;
+  const k0=parseFloat(getComputedStyle(v).getPropertyValue('--k'))||1,bot=$('#wishRow').getBoundingClientRect().bottom;
+  if(bot>lim){const k=Math.max(.4,k0-(bot-lim)/3/170);v.style.setProperty('--k',k.toFixed(3))}})}
+addEventListener('resize',fitRead);
+function renderShelf(){fitRead();sweepTray();renderSampleBar();renderSerDrag();
   $('#caseName').classList.toggle('multi',S.cases.length>1);$('#caseName').textContent=curCase().name;$('#caseSel').disabled=S.cases.length<2;document.title=curCase().name;
   $('#caseSel').innerHTML=S.cases.map(c=>`<option value="${c.id}" ${c.id===S.cur?'selected':''}>${esc(c.name)}</option>`).join('');
   const c=curCase();
@@ -422,13 +428,13 @@ $('#selColor').onclick=()=>{if(!SEL.size)return toast('先に本を選んでく�
   openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の背表紙の色</h2>
    <div class="fld"><label>背表紙の色（文字の色は自動）</label><div class="cchips">${chipsHTML(recoColors(f),L.c)}<input type="color" id="mc" value="${L.c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
    <div class="prev" style="gap:4px" id="mprev"></div>
-   <div class="btns"><button class="pri" id="mOk">まとめて変える</button><button id="mReset">自動の色に戻す</button></div>`);
+   <div class="btns act"><button class="pri" id="mOk">まとめて変える</button><button id="mReset">自動の色に戻す</button></div>`);
   const pv=()=>{$('#mprev').innerHTML=[...SEL].slice(0,8).map(id=>{const b=S.books[id],l=look(b);return `<div class="spine" style="--k:1;--c:${$('#mc').value};--t:${ink($('#mc').value)};--h:${l.h}px;--w:${l.w}px"><span class="ti">${esc(b.title)}</span></div>`}).join('')};
   pv();$('#mc').oninput=pv;
   $('#mOk').onclick=()=>{for(const id of SEL){S.books[id].color=$('#mc').value;delete S.books[id].tcolor}save();renderShelf();renderSel();closePanel();toast('色を変えました')};
   $('#mReset').onclick=()=>{for(const id of SEL){delete S.books[id].color;delete S.books[id].tcolor;if(S.seriesStyle)delete S.seriesStyle[skey(S.books[id])]}save();renderShelf();renderSel();closePanel();toast('自動の色に戻しました')}};
 $('#selStatus').onclick=()=>{if(!SEL.size)return toast('先に本を選んでください');
-  openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の状態を変える</h2><p class="msg">積読・読書中にするとそれぞれの棚へ、読了にすると積読・読書中の棚から本棚の一番下の段へ移ります。</p><div class="btns">${Object.entries(ST).map(([k,v])=>`<button data-st="${k}">${v}</button>`).join('')}</div>`);
+  openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の状態を変える</h2><div class="btns">${Object.entries(ST).map(([k,v])=>`<button data-st="${k}">${v}</button>`).join('')}</div>`);
   panel.querySelector('.btns').onclick=e=>{const k=e.target.closest('[data-st]')?.dataset.st;if(!k)return;for(const id of SEL){const b=S.books[id];if(!b)continue;b.status=k;placeByStatus(b)}SEL.clear();save();renderShelf();renderSel();closePanel();toast(`${ST[k]}にしました`)}};
 $('#selSeries').onclick=()=>{if(!SEL.size)return toast('先にシリーズの本を1冊タップしてください');const ser=new Set([...SEL].map(id=>seriesOf(S.books[id])));
   for(const b of Object.values(S.books))if(ser.has(seriesOf(b))&&placeOf(b.id))SEL.add(b.id);renderSel();toast(`${SEL.size}冊を選びました`)};
@@ -497,8 +503,7 @@ $('#shotBtn').onclick=async()=>{const c=curCase();if(!c.shelves.some(s=>s.books.
   if(!$('#shotList'))return;
   $('#shotMsg').textContent=SHOTS.length>1?`3段ずつ${SHOTS.length}枚の画像にしました。`:'画像にしました。';
   const canShare=navigator.canShare&&navigator.canShare({files:[new File([SHOTS[0].blob],SHOTS[0].name,{type:'image/png'})]});
-  $('#shotList').innerHTML=`<div class="btns" style="margin:0 0 10px">${canShare?`<button class="pri" id="shotShare">写真に保存・送る${SHOTS.length>1?`（${SHOTS.length}枚）`:''}</button>`:''}<button id="shotDl">ダウンロード</button></div>
-    <p class="note" style="margin:0 0 10px">${canShare?'「写真に保存・送る」を押すと共有メニューが開きます。「画像を保存」で写真アプリに入ります。LINEやメールでそのまま送ることもできます。':'画像を長押しすると保存できます。'}</p>`+
+  $('#shotList').innerHTML=`<div class="btns" style="margin:0 0 10px">${canShare?`<button class="pri" id="shotShare">写真に保存・送る${SHOTS.length>1?`（${SHOTS.length}枚）`:''}</button>`:''}<button id="shotDl">ダウンロード</button></div>`+
     SHOTS.map(x=>`<figure style="margin:0 0 14px"><img src="${x.url}" alt="${esc(x.label)}" style="width:100%;border-radius:6px;display:block"><figcaption class="note">${esc(x.label)}</figcaption></figure>`).join('');
   const files=()=>SHOTS.map(x=>new File([x.blob],x.name,{type:'image/png'}));
   if($('#shotShare'))$('#shotShare').onclick=async()=>{try{await navigator.share({files:files(),title:c.name})}catch(e){if(e.name!=='AbortError')toast('共有できませんでした。画像を長押しして保存してください')}};
@@ -517,9 +522,8 @@ $('#linkBtn').onclick=async()=>{const c=curCase();if(!c.shelves.some(s=>s.books.
   let url;try{url=location.href.split('#')[0].split('?')[0]+'#view='+await packShare(c)}catch(e){return toast('リンクを作れませんでした')}
   const n=c.shelves.reduce((a,s)=>a+s.books.length,0);
   openPanel(`<button class="x" data-close>閉じる</button><h2>共有リンク</h2>
-    <p class="msg">「${esc(c.name)}」の今の並び（${n}冊）をリンクにしました。リンクを知っている人だけが見られます。相手は見るだけで、変更はできません。メモは入りません。</p>
-    <div class="btns">${navigator.share?'<button class="pri" id="lkShare">送る（LINE・メッセージなど）</button>':''}<button id="lkCopy">リンクをコピー</button></div>
-    <p class="note">あとで本を並べ替えても、送ったリンクの中身は変わりません。新しい並びを見せたいときは、もう一度リンクを作って送ってください。（リンクの長さ：${url.length}文字）</p>`);
+    <p class="msg">「${esc(c.name)}」（${n}冊）の見るだけのリンクです。リンクを知っている人だけが見られます。</p>
+    <div class="btns">${navigator.share?'<button class="pri" id="lkShare">送る（LINE・メッセージなど）</button>':''}<button id="lkCopy">リンクをコピー</button></div>`);
   if($('#lkShare'))$('#lkShare').onclick=async()=>{try{await navigator.share({title:c.name,text:`本棚「${c.name}」`,url})}catch(e){}};
   $('#lkCopy').onclick=async()=>{try{await navigator.clipboard.writeText(url);toast('リンクをコピーしました')}catch(e){prompt('このリンクをコピーしてください',url)}}};
 async function openViewer(){const m=location.hash.match(/^#view=([A-Za-z0-9_-]+)/);const V=$('#viewer');if(!m){V.hidden=true;V.innerHTML='';return}
@@ -600,8 +604,8 @@ $('#caseDel').onclick=()=>{if(S.cases.length<2)return toast('本棚は最低1つ
   confirmP(`「${c.name}」を削除します。並んでいた本は、ほかの本棚の一番下の段に移ります。`,()=>{const mv=c.shelves.flatMap(s=>s.books);S.cases=S.cases.filter(x=>x!==c);S.cur=S.cases[0].id;bottomList().push(...mv);save();renderShelf()})};
 $('#case').addEventListener('click',e=>{const b=e.target.closest('.sname');if(!b)return;const c=curCase();const s=c.shelves.find(x=>x.id===b.dataset.sid);
   openPanel(`<button class="x" data-close>閉じる</button><h2>段の設定</h2><div class="fld"><label>段の名前</label><input id="sn" value="${esc(s.name)}"></div>
-  <div class="btns"><button class="pri" id="snOk">保存</button><button id="snDel">この段を削除</button></div>
-  <div class="btns"><button id="snTidy">シリーズを巻数順に整える</button></div><p class="msg">同じシリーズの本を、最初の1冊の位置に巻数順でまとめます。</p><p class="msg">削除すると、この段の本は一番下の段（この段が一番下なら、1つ上の段）の最後に移ります。</p>`);
+  <div class="btns act"><button class="pri" id="snOk">保存</button><button id="snDel">この段を削除</button></div>
+  <div class="btns"><button id="snTidy">シリーズを巻数順に整える</button></div>`);
   $('#snOk').onclick=()=>{s.name=$('#sn').value.trim()||s.name;save();renderShelf();closePanel()};
   $('#snTidy').onclick=()=>{const out=[],done=new Set();for(const id of s.books){if(done.has(id))continue;const ser=seriesOf(S.books[id]);const grp=s.books.filter(x=>!done.has(x)&&seriesOf(S.books[x])===ser).sort(byVol);grp.forEach(x=>done.add(x));out.push(...grp)}
     s.books=out;save();renderShelf();closePanel();toast('巻数順に整えました')};
@@ -614,9 +618,9 @@ const coarse=matchMedia('(pointer:coarse)').matches;
 function openPanel(h){stopScan();panel.innerHTML=h;panel.classList.add('open');if(!coarse)panel.querySelector('input,button.pri')?.focus()}
 function closePanel(){stopScan();panel.classList.remove('open')}
 panel.addEventListener('click',e=>{if(e.target.closest('[data-close]'))closePanel()});
-function ask(label,val,cb){openPanel(`<button class="x" data-close>閉じる</button><h2>${esc(label)}</h2><div class="fld"><input id="askv" value="${esc(val)}"></div><div class="btns"><button class="pri" id="askOk">決定</button></div>`);
+function ask(label,val,cb){openPanel(`<button class="x" data-close>閉じる</button><h2>${esc(label)}</h2><div class="fld"><input id="askv" value="${esc(val)}"></div><div class="btns act"><button class="pri" id="askOk">決定</button></div>`);
   const go=()=>{const v=$('#askv').value.trim();if(v){cb(v);closePanel()}};$('#askOk').onclick=go;$('#askv').onkeydown=e=>{if(e.key==='Enter')go()}}
-function confirmP(t,cb){openPanel(`<button class="x" data-close>閉じる</button><h2>確認</h2><p>${esc(t)}</p><div class="btns"><button class="pri" id="cfOk">実行する</button><button data-close>やめる</button></div>`);$('#cfOk').onclick=()=>{cb();closePanel()}}
+function confirmP(t,cb){openPanel(`<button class="x" data-close>閉じる</button><h2>確認</h2><p>${esc(t)}</p><div class="btns act"><button class="pri" id="cfOk">実行する</button><button data-close>やめる</button></div>`);$('#cfOk').onclick=()=>{cb();closePanel()}}
 
 /* ---- 本の詳細・編集 ---- */
 function form(b,add){return `
@@ -625,14 +629,12 @@ function form(b,add){return `
   <div class="fld"><label>タイトル</label><input id="f-title" value="${esc(b.title)}"></div>
   <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
-  ${add?`<div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>`:''}
+  ${1?`<div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>`:''}
   </details>
-${add?`  <div hidden><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>`:`  <div class="two"><div class="fld">${add?'':'<label>状態</label>'}<select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
-  <div class="fld">${add?'':'<label>本棚での見せ方</label>'}<select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
-  <div class="fld"><label>背表紙の色（左ほどおすすめ。文字の色は自動）</label><div class="cchips" id="f-chips">${chipsHTML(recoColors(b),look(b).c)}<input type="color" id="f-color" value="${look(b).c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
-  ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}
-  <div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>
-  <div class="fld"><label>メモ</label><textarea id="f-memo" rows="3">${esc(b.memo)}</textarea></div>`}`}
+${add?`  <div hidden><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>`:`  <div class="two"><div class="fld">${add?'':''}<select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
+  <div class="fld">${add?'':''}<select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
+  <div class="fld"><div class="cchips one" id="f-chips">${chipsHTML(recoColors(b),look(b).c)}<input type="color" id="f-color" value="${look(b).c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
+  ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}`}`}
 function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol']){const el=$('#f-'+k);if(el)b[k]=el.value.trim()}
   if(!$('#f-color'))return void(b.isbn=normIsbn(b.isbn)||b.isbn);
   const c=$('#f-color').value,t=ink(c);const L0=look(b);
@@ -648,7 +650,7 @@ function shrink(f,max=360,ratio=false){return new Promise(r=>{const img=new Imag
 
 function openBook(id){const b=S.books[id];if(!b)return;const tmp={...b};
   openPanel(`<button class="x" data-close>閉じる</button><h2>${esc(b.title)}</h2><p class="msg">場所：${esc(placeOf(id))}</p>${form(tmp)}
-   <div class="btns"><button class="pri" id="bSave">保存</button><button id="bDel">削除</button></div>`);
+   <div class="btns act"><button class="pri" id="bSave">保存</button><button id="bDel">削除</button></div>`);
   bindImg(tmp);
   $('#bSave').onclick=()=>{readForm(tmp);S.books[id]=tmp;if(tmp.status!==b.status)placeByStatus(tmp);save();renderAll();closePanel();toast('保存しました')};
   $('#bDel').onclick=()=>confirmP(`「${b.title}」を蔵書から削除します。`,()=>{removeEverywhere(id);delete S.books[id];save();renderAll()});
@@ -743,7 +745,7 @@ async function showSeries(b){const box=$('#serBox');SER={list:[],on:new Set()};i
   const draw=()=>{box.innerHTML=`<div class="fld" style="border:1px solid var(--line);border-radius:12px;padding:10px"><label style="font-weight:700;color:var(--ink)">「${esc(seriesOf(b))}」のほかの巻もまとめて登録（${SER.on.size}冊選択）</label>
     <div class="btns" style="margin:6px 0"><button data-s="upto">1〜${v0}巻</button><button data-s="all">全部</button><button data-s="none">なし</button></div>
     <div class="follow">${L.map((x,i)=>`<button class="chip" data-i="${i}" aria-pressed="${SER.on.has(i)}" style="${SER.on.has(i)?'background:var(--acc);color:#fff;border-color:var(--acc)':''}">${volOf(x)}巻</button>`).join('')}</div>
-    <p class="msg" style="margin:0">持っている巻をタップして選ぶと、「追加する」で一緒に登録します（まだ登録していない巻だけ出しています）</p></div>`};
+    <p class="msg" style="margin:0">タップした巻も一緒に登録します</p></div>`};
   box.onclick=e=>{const c=e.target.closest('[data-i]'),s=e.target.closest('[data-s]');
     if(c){const i=+c.dataset.i;SER.on.has(i)?SER.on.delete(i):SER.on.add(i)}
     if(s){SER.on=new Set(L.map((x,i)=>i).filter(i=>s.dataset.s==='all'||(s.dataset.s==='upto'&&volOf(L[i])<v0)))}
@@ -786,17 +788,18 @@ async function scan(onCode,keep=false){if(CAM)return stopScan();const box=$('#sc
           if(r.other&&!r.isbn&&Date.now()-(me.lastT||0)>3000){m.className='msg';m.textContent='それは価格のバーコードです。上にある「978」で始まるバーコードを写してください'}}catch(e){}}
       me.t=setTimeout(tick,60)};
     tick();
-  }catch(e){stopScan();m.textContent=e?.name==='NotAllowedError'?'カメラの使用が許可されていません。設定の Safari → カメラ を「許可」にしてください。':'カメラを起動できませんでした。下の「写真を撮って読み取る」を試してください。';m.className='msg err'}}
+  }catch(e){stopScan();m.textContent=e?.name==='NotAllowedError'?'カメラの使用が許可されていません。設定の Safari → カメラ を「許可」にしてください。':'カメラを起動できませんでした。キーワードで探して追加してください。';m.className='msg err'}}
 $('#addBtn').onclick=()=>addBook();
 /* 連続スキャン：カメラを開いたまま次々読み、一覧にためてからまとめて登録 */
 function bulkAdd(){const Q=[];const owned=new Set(Object.values(S.books).map(b=>b.isbn));
   openPanel(`<button class="x" data-close>閉じる</button><h2>続けて読み取る</h2>
-   <p class="msg" id="lmsg">本を1冊ずつカメラにかざしてください。読めるとブルッと震えて下の一覧に入ります。</p>
+   <p class="msg" id="lmsg">本を1冊ずつカメラにかざしてください</p>
    <button class="pri" id="scanBtn" style="width:100%;min-height:48px">読み取りをやめる</button>
    <div class="scan" id="scanBox" hidden></div>
-   <div class="fld" style="margin-top:12px"><label>状態</label><select id="bst">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${k==='done'?'selected':''}>${v}</option>`).join('')}</select><p class="note" style="margin:4px 0 0">読了は本棚の最後に、積読・読書中・読みたいはそれぞれの棚に入ります</p></div>
-   <button class="pri" id="bulkSave" style="width:100%;min-height:48px" disabled>0冊をまとめて登録</button>
-   <div id="bq" style="margin-top:8px"></div>`);
+   <select id="bst" hidden>${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${k==='done'?'selected':''}>${v}</option>`).join('')}</select>
+   <div id="bq" style="margin-top:8px"></div>
+   <div class="btns stick"><div class="seg" id="bSt" style="flex-basis:100%;margin:0 0 4px">${Object.entries(ST).map(([k,v])=>`<button type="button" data-st="${k}" aria-pressed="${k==='done'}">${v}</button>`).join('')}</div><button class="pri" id="bulkSave" disabled>0冊をまとめて登録</button></div>`);
+  $('#bSt').onclick=e=>{const t=e.target.closest('[data-st]');if(!t)return;$('#bst').value=t.dataset.st;for(const x of $('#bSt').children)x.setAttribute('aria-pressed',x===t)};
   const draw=()=>{const ok=Q.filter(q=>q.b).length;const bs=$('#bulkSave');if(!bs)return;bs.textContent=`${ok}冊をまとめて登録`;bs.disabled=!ok;
     $('#bq').innerHTML=Q.map((q,i)=>`<div class="rel">${q.b?faceHTML(q.b,84):'<div></div>'}<div><b>${esc(q.b?.title||q.isbn)}</b><div class="d">${q.b?esc(q.b.author)+'・'+esc(q.b.publisher):q.err?esc(q.err):'検索中…'}</div></div><button data-rm="${i}" aria-label="一覧から外す">外す</button></div>`).reverse().join('')};
   $('#bq').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){Q.splice(+b.dataset.rm,1);draw()}};
@@ -997,7 +1000,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>機種変更やバックアップのときは「データ」→「ファイルに書き出す」で保存し、新しい端末で「ファイルから読み込む」を使います。</li>
   <li>表示が古いときは、ページを閉じて開き直すと新しい版になります。</li></ul></div>`);
 $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</button><h2>データ</h2>
-  <p class="msg">蔵書はこのブラウザの中（localStorage）に保存されています。別の端末へ移す時やバックアップには書き出しを使ってください。</p>
+  <p class="msg">別の端末へ移す時やバックアップには「書き出す」を使います。</p>
   <div class="btns"><button class="pri" id="ex">ファイルに書き出す</button><button id="cp">JSONをコピー</button><button id="im">ファイルから読み込む</button><button id="clr">空にする</button></div>`);
   const json=()=>JSON.stringify(S,null,1);
   $('#ex').onclick=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json()],{type:'application/json'}));a.download='hondana-'+new Date().toISOString().slice(0,10)+'.json';a.click()}catch(e){toast('書き出しできない環境です。コピーを使ってください')}};
@@ -1011,18 +1014,19 @@ function renderAll(){renderShelf();renderList();renderNews();renderReco();render
 function show(v){if(v==='shelf'||v==='list')scrollTo(0,0);$('#caseMore').hidden=v!=='shelf';$('#findBtn').setAttribute('aria-pressed',v==='list');for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
   for(const s of ['shelf','read','list','news'])$('#v-'+s).hidden=s!==v;if(v==='shelf'&&Math.abs($('#case').clientWidth-PW)>4)renderShelf();if(location.hash!=='#'+v&&!location.hash.startsWith('#view='))history.replaceState(null,'','#'+v);
   if(v==='list')fitGrid();
+  if(v==='read')fitRead();
   if(v==='news'){showSeg(S.seg||'new');if(newsStale())checkNews();S.newsSeen=(S.news?.items||[]).map(x=>x.isbn);save();setTimeout(renderBadge,1500)}}
 /* 画面が上下にぶれないようにする：本棚は上下に動かさない。ほかの画面も、中身が画面に収まる時は動かさない（はみ出す時だけ上下にスクロール） */
 let TX=0,TY=0;
 document.addEventListener('touchstart',e=>{const t=e.touches[0];TX=t.clientX;TY=t.clientY},{passive:true});
 document.addEventListener('touchmove',e=>{if(D?.on||e.touches.length>1)return;if(e.target.closest('.panel,.menu,#viewer:not([hidden]),.scan'))return;const sc=e.target.closest('.iscroll');if(sc&&sc.scrollHeight>sc.clientHeight+1)return;
   const t=e.touches[0];if(Math.abs(t.clientY-TY)<=Math.abs(t.clientX-TX))return;
-  const el=document.scrollingElement;const nl=!$('#v-list').hidden||!$('#v-news').hidden&&$('#v-news .iscroll')&&!$('#nset').open&&!$('#rankSet details[open]');if(!$('#v-shelf').hidden||nl||el.scrollHeight<=innerHeight+2)e.preventDefault()},{passive:false});
+  const el=document.scrollingElement;const nl=!$('#v-list').hidden||!$('#v-read').hidden||!$('#v-news').hidden&&$('#v-news .iscroll')&&!$('#nset').open&&!$('#rankSet details[open]');if(!$('#v-shelf').hidden||nl||el.scrollHeight<=innerHeight+2)e.preventDefault()},{passive:false});
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v60';let updAt=0;
+const APP_V='hondana-v61';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
