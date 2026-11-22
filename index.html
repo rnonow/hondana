@@ -53,7 +53,7 @@ main{padding:0 max(3vw,14px) 40px}
 .case .row{overflow:hidden}
 .sname .pn{opacity:.8}
 .pgnav{display:flex;align-items:center;justify-content:center;gap:14px;margin:8px 0 0;max-width:1240px}.pgnav[hidden]{display:none}
-.pgnav button{min-width:44px;min-height:36px;border-radius:18px;font-size:22px;line-height:1;padding:0 10px}.pgnav span{font-weight:700;min-width:54px;text-align:center;font-variant-numeric:tabular-nums}
+.pgnav{gap:10px;padding:0 4px}#pgPrev,#pgNext,#pgNo{display:none}#pgBar{flex:1;min-width:0;max-width:640px;height:36px;accent-color:var(--wood2,#8a5a35);touch-action:pan-x}.pgnav button{flex:none;min-width:44px;min-height:36px;border-radius:18px;font-size:22px;line-height:1;padding:0 10px}.pgnav span{font-weight:700;min-width:54px;text-align:center;font-variant-numeric:tabular-nums}
 .case.edgeL{box-shadow:inset 30px 0 24px -20px var(--acc),0 18px 40px -18px #0008}.case.edgeR{box-shadow:inset -30px 0 24px -20px var(--acc),0 18px 40px -18px #0008}
 .sname{position:absolute;left:8px;top:6px;z-index:2;font-size:12px;color:#f3e6d6;opacity:.75;background:none;border:0;padding:0;min-height:0}
 .row{display:flex;align-items:flex-end;gap:2px;min-height:210px;padding:26px 12px 0;overflow-x:auto;overflow-y:hidden;
@@ -70,7 +70,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .spine .au{writing-mode:vertical-rl;font-size:10px;opacity:.8;max-height:28%;overflow:hidden;white-space:nowrap}
 .spine .bg{position:absolute;inset:-10%;width:120%;height:120%;object-fit:cover;object-position:left center;filter:blur(4px) brightness(.72) saturate(1.15)}
 .spine .ti,.spine .au{position:relative}
-.tcy{text-combine-upright:all;-webkit-text-combine:horizontal}
+.tcy{text-combine-upright:all;-webkit-text-combine:horizontal}.tcy.d3{font-size:.72em}
 .spine.hasimg{color:#fff;text-shadow:0 1px 3px #000c}
 .spine.photo{padding:0}.spine.photo img{width:100%;height:100%;object-fit:cover;display:block}.spine.photo::before,.spine.photo::after{display:none}
 .spine::before,.spine::after{content:"";position:absolute;left:0;right:0;height:2px;background:#fff3}.spine::before{top:6px}.spine::after{bottom:4px}
@@ -123,6 +123,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 #seg{position:sticky;bottom:12px;z-index:29;box-shadow:0 6px 20px #0002}#v-news{display:flex;flex-direction:column}#v-news[hidden]{display:none}#seg{order:9;margin:16px 0 0}
 .filters.ctr{flex-direction:column;align-items:center;gap:6px;text-align:center}.filters.ctr .pri{min-width:180px}
 .seg{display:flex;gap:4px;background:var(--line);border-radius:12px;padding:4px;margin:0 0 14px}.seg button{flex:1;border:0;background:none;border-radius:9px;min-height:40px;font-weight:700}
+.seg.sub{margin:0 0 10px;background:none;border:1px solid var(--line)}.seg.sub button{min-height:36px;font-size:14px}.seg small{font-weight:400;opacity:.7}
 .seg button[aria-pressed=true]{background:var(--panel);box-shadow:0 1px 4px #0002}
 .rel .wish{white-space:nowrap}
 .rklinks{display:flex;flex-direction:column;gap:10px}.btnlink{display:block;text-align:center;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);font-weight:700;text-decoration:none}
@@ -216,7 +217,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
     <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。右上の「＋ 本を追加」から、バーコードやキーワードで登録できます。</p>
     <div class="case" id="case"></div>
-    <div class="pgnav" id="pgnav" hidden><button id="pgPrev" aria-label="前のページ">‹</button><span id="pgNo"></span><button id="pgNext" aria-label="次のページ">›</button></div>
+    <div class="pgnav" id="pgnav" hidden><button id="pgPrev" aria-label="前のページ">‹</button><input type="range" id="pgBar" min="0" max="1" step="1" value="0" aria-label="ページを選ぶ"><span id="pgNo"></span><button id="pgNext" aria-label="次のページ">›</button></div>
   </section>
 
   <section id="v-read" hidden>
@@ -242,7 +243,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
   <section id="v-news" class="sec" hidden>
     <div class="seg" id="seg"><button data-p="new" aria-pressed="true">新刊</button><button data-p="reco" aria-pressed="false">おすすめ</button><button data-p="rank" aria-pressed="false">ランキング</button></div>
     <div id="pReco" hidden>
-      <p class="note">持っている本の著者の、まだ持っていない本です（国立国会図書館サーチ）。3日に1回、自動で探し直します。</p>
+      <div class="seg sub" id="rcat"></div>
       <div class="filters ctr"><button class="pri" id="rcheck">探し直す</button><span class="note" id="rlast" style="margin:0"></span></div>
       <p class="msg" id="rmsg"></p><div id="reco"></div></div>
     <div id="pRank" hidden><div class="seg" id="rgen" style="margin-bottom:10px"></div><p class="msg" id="rankMsg"></p><div id="rank"></div><div id="rankSet"></div></div>
@@ -337,7 +338,7 @@ function coverHTML(b){const src=coverSrc(b);
   return `<div class="gen"><b>${esc(b.title)}</b><small>${esc(b.author)}</small></div>`+
     (src?`<img src="${esc(src)}" alt="" loading="lazy" ${b.cover?(/^https?:/.test(b.cover)&&gUrl(b.isbn)?`data-alt="${esc(gUrl(b.isbn))}"`:''):'data-g="1"'} ${IMG_ON}>`:'');}
 function faceHTML(b,fh){const L=look(b);return `<div class="face" style="--c:${L.c};--t:${L.t};--fh:${fh||L.h}px">${coverHTML(b)}</div>`}
-const tcy=t=>esc(t).replace(/(?<![\d&#])\d{1,3}(?!\d|;)/g,'<span class="tcy">$&</span>');
+const tcy=t=>esc(t).replace(/(?<![\d&#])\d{1,3}(?!\d|;)/g,m=>`<span class="tcy${m.length>2?' d3':''}">${m}</span>`);
 const tiSize=t=>{const n=[...String(t||'')].length;return n>26?' style="font-size:9px"':n>13?' style="font-size:10px"':n>9?' style="font-size:11.5px"':''};
 function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
   const src=coverSrc(b);
@@ -374,10 +375,11 @@ function renderPages(c,zf){const el=$('#case');const mob=matchMedia('(max-width:
     if(nb>lim&&h>0){const z2=Math.max(.45,z*(h-(nb-lim))/h);if(z2<z-.005)renderPages(c,z2)}}}
 /* 本棚が使える下の端：スマホは下のタブの上まで、パソコンは画面の下まで */
 function shelfLimit(){const t=$('#tabs');return getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top-6:innerHeight-8}
-function renderPgNav(){const n=$('#pgnav');n.hidden=PAGES<2;$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1}
+function renderPgNav(){const n=$('#pgnav');n.hidden=PAGES<2;const bar=$('#pgBar');bar.max=Math.max(1,PAGES-1);if(document.activeElement!==bar||!bar.matches(':active'))bar.value=PAGE;$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1}
 function goPage(i){const el=$('#case');i=Math.max(0,Math.min(PAGES-1,i));if(i===PAGE&&Math.abs(el.scrollLeft-i*el.clientWidth)<2)return false;PAGE=i;el.scrollTo({left:i*el.clientWidth,behavior:'smooth'});renderPgNav();return true}
 $('#case').addEventListener('scroll',()=>{const el=$('#case');if(!el.clientWidth)return;const i=Math.round(el.scrollLeft/el.clientWidth);if(i!==PAGE){PAGE=i;renderPgNav()}},{passive:true});
-$('#pgPrev').onclick=()=>goPage(PAGE-1);$('#pgNext').onclick=()=>goPage(PAGE+1);
+$('#pgPrev').onclick=()=>goPage(PAGE-1);
+$('#pgBar').oninput=e=>{const i=+e.target.value;if(i===PAGE)return;const el=$('#case');PAGE=i;el.scrollTo({left:i*el.clientWidth,behavior:'auto'});$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1};$('#pgNext').onclick=()=>goPage(PAGE+1);
 let RSZ;addEventListener('resize',()=>{clearTimeout(RSZ);RSZ=setTimeout(()=>{const w=$('#case').clientWidth;if(w&&Math.abs(w-PW)>4&&!D?.on)renderShelf()},200)});
 function renderShelf(){sweepTray();renderSampleBar();renderSerDrag();
   $('#caseName').classList.toggle('multi',S.cases.length>1);$('#caseName').textContent=curCase().name;$('#caseSel').disabled=S.cases.length<2;document.title=curCase().name;
@@ -670,7 +672,16 @@ async function ndl(qs){let r;for(let k=0;k<3;k++){r=await fetch('https://ndlsear
   return [...d.getElementsByTagName('item')].map(i=>{const ids=[...i.getElementsByTagName('dc:identifier')];
     const isbn=normIsbn((ids.find(e=>/ISBN/.test(e.getAttribute('xsi:type')||''))||{}).textContent);
     return {isbn,title:[cleanTitle(g(i,'dc:title')||g(i,'title')),g(i,'dcndl:volume')].filter(Boolean).join(' '),author:[...i.getElementsByTagName('dc:creator')].map(e=>ndlName(e.textContent)).filter((v,k,a)=>a.indexOf(v)===k).join('・'),
-      publisher:g(i,'dc:publisher'),pubdate:ndlDate(g(i,'dcterms:issued')),cover:''}})}
+      publisher:g(i,'dc:publisher'),pubdate:ndlDate(g(i,'dcterms:issued')),cover:'',cat:ndlCat(i)}})}
+/* 本の種類：マンガ／小説（文庫）／小説（単行本）。国立国会図書館の分類（NDC・NDLC）とシリーズ名で見分ける。どれでもなければ空 */
+function ndlCat(i){const pl=i.getElementsByTagName('dcndl:publicationPlace')[0]?.textContent?.trim();if(pl&&pl!=='JP')return '';const sub=[...i.getElementsByTagName('dc:subject')].map(e=>(e.getAttribute('xsi:type')||'')+':'+e.textContent.trim());
+  const ser=[...i.getElementsByTagName('dcndl:seriesTitle')].map(e=>e.textContent).join(' ')+' '+(i.getElementsByTagName('dc:title')[0]?.textContent||'');
+  const ndc=sub.filter(x=>/NDC/.test(x)).map(x=>x.split(':').pop()),ndlc=sub.filter(x=>/NDLC/.test(x)).map(x=>x.split(':').pop());
+  if(ndc.some(x=>/^726/.test(x))||ndlc.some(x=>/^Y8/.test(x))||/コミック|COMICS|ＫＣ|(^|\s)KC|マンガ文庫|漫画文庫/i.test(ser))return 'manga';
+  const novel=ndc.some(x=>/^9[0-9]3/.test(x))||ndlc.some(x=>/^K[HIJKS]/.test(x));
+  if(/大活字|点字|デイジー|朗読/.test(ser))return '';
+  if(/文庫/.test(ser))return novel||!ndc.length?'bunko':'';
+  return novel?'book':''}
 const fmtDate=d=>{d=String(d||'');return d.length===8?`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`:d.length===6?`${d.slice(0,4)}-${d.slice(4)}`:d};
 function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title:'',author:'',publisher:'',pubdate:'',status:'done',mode:'spine',memo:'',cover:'',added:Date.now(),...pre};
   openPanel(`<button class="x" data-close>閉じる</button><h2>本を追加</h2>
@@ -868,7 +879,7 @@ function addWish(n){const owned=new Set(Object.values(S.books).map(b=>b.isbn).fi
   const b={id:uid(),isbn:n.isbn||'',title:n.title||'',author:n.author||'',publisher:n.publisher||'',pubdate:n.pubdate||'',status:'wish',mode:'spine',memo:'',cover:n.cover||'',added:Date.now()};
   S.books[b.id]=b;placeByStatus(b);save();renderAll();toast(`「${b.title}」を読みたい棚に入れました`)}
 /* ---- おすすめ：持っている本の著者の、まだ持っていない本 ---- */
-const recoStale=()=>!S.reco||Date.now()-S.reco.t>3*864e5;let RECO_RUN=false;
+const recoStale=()=>!S.reco||Date.now()-S.reco.t>3*864e5||(S.reco.items||[]).some(x=>!x.cat);let RECO_RUN=false;
 async function checkReco(){if(RECO_RUN)return;const m=$('#rmsg');const mute=new Set(S.mute||[]);const cnt={};
   for(const b of Object.values(S.books))for(const a of String(b.author).split('・').map(x=>x.trim()).filter(Boolean)){const k='a:'+normKey(a);if(!mute.has(k))(cnt[k]??={q:a,n:0,key:k}).n++}
   const A=Object.values(cnt).sort((x,y)=>y.n-x.n).slice(0,10);if(!A.length){m.textContent='本を登録すると、その著者のほかの本をおすすめします';return}
@@ -876,14 +887,18 @@ async function checkReco(){if(RECO_RUN)return;const m=$('#rmsg');const mute=new 
   const hide=new Set(S.newsHide||[]);const newsI=new Set((S.news?.items||[]).map(x=>x.isbn));const seen=new Set();const out=[];let fail=0,i=0;
   for(const a of A){m.textContent=`探しています… ${++i}/${A.length}（${a.q}）`;
     try{const bySer=new Map();for(const n of await ndl(`creator=${encodeURIComponent(a.q)}&cnt=80`)){
-        if(!n.isbn||owned.has(n.isbn)||hide.has(n.isbn)||newsI.has(n.isbn)||seen.has(n.isbn))continue;const k=skey(n);if(ownSer.has(k))continue;
+        if(!n.cat||!n.isbn||owned.has(n.isbn)||hide.has(n.isbn)||newsI.has(n.isbn)||seen.has(n.isbn))continue;if(ownSer.has(skey(n)))continue;const k=n.cat+'|'+skey(n);
         const p=bySer.get(k);if(!p||volOf(n)<volOf(p)||(volOf(n)===volOf(p)&&n.pubdate>p.pubdate))bySer.set(k,n)}
-      const L=[...bySer.values()].sort((x,y)=>String(y.pubdate).localeCompare(String(x.pubdate))).slice(0,6);
+      const L=[...bySer.values()].sort((x,y)=>String(y.pubdate).localeCompare(String(x.pubdate))).filter((n,_,A)=>A.filter(x=>x.cat===n.cat).indexOf(n)<5);
       for(const n of L){seen.add(n.isbn);out.push({...n,key:a.key,label:`${a.q}の本を${a.n}冊持っています`})}}catch(e){fail++}
     await new Promise(r=>setTimeout(r,350))}
   S.reco={t:Date.now(),items:out,fail:fail===A.length};save();RECO_RUN=false;$('#rcheck').disabled=false;renderReco()}
+const RCAT=[['book','小説・単行本'],['bunko','小説・文庫'],['manga','マンガ']];
+$('#rcat').onclick=e=>{const b=e.target.closest('[data-c]');if(b){S.rcat=b.dataset.c;save();renderReco();$('#reco').scrollTop=0}};
 function renderReco(){fitList();const R0=S.reco;const m=$('#rmsg');$('#rlast').textContent=R0?`最終確認：${new Date(R0.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
-  const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));const items=(R0?.items||[]).filter(x=>!owned.has(x.isbn)&&!(S.mute||[]).includes(x.key));
+  const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));const all=(R0?.items||[]).filter(x=>!owned.has(x.isbn)&&!(S.mute||[]).includes(x.key));
+  const cat=S.rcat||'book';$('#rcat').innerHTML=RCAT.map(([k,n])=>{const c=all.filter(x=>x.cat===k).length;return `<button data-c="${k}" aria-pressed="${k===cat}">${n}${c?`<small> ${c}</small>`:''}</button>`}).join('');
+  const items=all.filter(x=>x.cat===cat);
   if(!RECO_RUN&&R0){m.className='msg'+(R0.fail?' err':'');m.textContent=R0.fail?'つながりませんでした。少し待って「探し直す」を押してください':items.length?`${items.length}冊あります`:'おすすめは見つかりませんでした'}
   $('#reco').innerHTML=items.map(n=>`<div class="rel">${faceHTML(n,100)}<div><b>${esc(n.title)}</b><div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div>
     <div class="d">${esc(n.label)}　<button class="chip" style="min-height:30px;padding:2px 10px" data-rmute="${esc(n.key)}">この著者は出さない</button></div></div>
@@ -952,12 +967,12 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>「読書中」「積読」「読みたい」にした本は、下のタブ「読書中」にあるそれぞれの棚へ自動で入ります（積読は登録順）。3つの棚の間でドラッグすると、状態もその棚に合わせて変わります。読了にすると本棚の一番下の段の最後に移ります。</li>
   <li>本棚の右上の「…」から、本棚や段の追加、画像で保存、共有リンク、まとめて選ぶなどができます。データと使い方は右上の ⚙ にあります。</li>
   <li>背表紙の色は、タイトルの言葉（「海」なら青など）からおすすめの色が最初に選ばれます。本をタップして編集すると、おすすめの色から選び直せます。文字の色は背景に合わせて白か黒に自動で変わります。</li>
-  <li>本棚は本のようにページになっていて、1ページに3段ずつ入ります。左右にスワイプ（または下の ‹ › ）でめくります。段に入りきらない本は次の段へ、3段目の続きは次のページへ続きます。本を長押しで持ったまま画面の左右の端へ持っていくと、ページがめくれます。</li>
+  <li>本棚は本のようにページになっていて、1ページに3段ずつ入ります。左右にスワイプするか、下のバーをスライドしてめくります。段に入りきらない本は次の段へ、3段目の続きは次のページへ続きます。本を長押しで持ったまま画面の左右の端へ持っていくと、ページがめくれます。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>選書（新刊・おすすめ）</h3><ul>
   <li>本棚にある本のシリーズと著者から、新しく出た本と発売予定の本を自動で探します。</li>
   <li>興味のないものは「この著者を追わない」などを押すと、次から出なくなります。</li>
-  <li>「おすすめ」には、持っている本の著者の、まだ持っていない本が出ます。「読みたい」を押すと読みたい棚に入ります。</li>
+  <li>「おすすめ」には、持っている本の著者の、まだ持っていない本が「小説・単行本」「小説・文庫」「マンガ」に分かれて出ます。「読みたい」を押すと読みたい棚に入ります。</li>
   <li>「ランキング」は楽天ブックスの売れている順です。最初に楽天の無料のIDを入れます：<br>① <a href="https://webservice.rakuten.co.jp/app/create" target="_blank" rel="noopener">楽天ウェブサービスのアプリ登録</a>を開き、楽天会員でログイン<br>② アプリケーション名は英数字（例：hondana）、アプリケーションURLは https://rnonow.github.io/hondana/ 、アプリケーションタイプは「Webアプリケーション」<br>③ 「許可されたWebサイト」に rnonow.github.io と入れる<br>④ APIアクセススコープは「楽天ブックスAPI」にチェック<br>⑤ 規約に同意して発行し、出てきた「アプリケーションID」と「アクセスキー」を選書→ランキングの欄に貼り付けて保存</li></ul>
   <h3>人に見せる</h3><ul>
   <li>「画像で保存」：本棚を3段ずつ画像にして、写真に保存したりLINEで送ったりできます。</li>
@@ -992,7 +1007,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v53';let updAt=0;
+const APP_V='hondana-v55';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
