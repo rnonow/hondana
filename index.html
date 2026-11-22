@@ -671,7 +671,6 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
    <p class="msg" id="lmsg">openBD → Google Books → 国立国会図書館サーチの順に探します。見つからなければ下に手入力してください。</p>
    <div id="serBox"></div>
    <div id="fwrap">${form(b)}</div>
-   <div class="fld"><label>置き場所</label><select id="where">${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
    <div class="btns"><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
   bindImg(b);
   const go=async()=>{const isbn=normIsbn($('#isbn').value);const m=$('#lmsg');m.className='msg';
@@ -696,13 +695,12 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
   $('#bulkBtn').onclick=()=>{primeSound();bulkAdd()};
   $('#kwBtn').onclick=kwgo;$('#kw').onkeydown=e=>{if(e.key==='Enter')kwgo()};
   const save1=()=>{readForm(b);if(!b.title){toast('タイトルを入れてください');return false}
-    const w=$('#where').value;const extra=(SER.list||[]).filter((x,i)=>SER.on.has(i)).map(x=>({id:uid(),isbn:x.isbn,title:x.title,author:x.author||b.author,publisher:x.publisher,pubdate:x.pubdate,status:b.status,mode:'spine',memo:'',cover:'',added:Date.now(),series:b.series||''}));
+    const extra=(SER.list||[]).filter((x,i)=>SER.on.has(i)).map(x=>({id:uid(),isbn:x.isbn,title:x.title,author:x.author||b.author,publisher:x.publisher,pubdate:x.pubdate,status:b.status,mode:'spine',memo:'',cover:'',added:Date.now(),series:b.series||''}));
     if(extra.length&&b.color){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c:b.color,t:ink(b.color)};delete b.color;delete b.tcolor}
-    const all=[b,...extra].sort((x,y)=>volOf(x)-volOf(y));all.forEach((x,i)=>{x.added=Date.now()+i;S.books[x.id]=x});if(LOCK[b.status])all.forEach(placeByStatus);else listOf(w).push(...all.map(x=>x.id));
-    S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(extra.length?`「${seriesOf(b)}」${all.length}冊を追加しました`:`「${b.title}」を追加しました`);return true};
+    const all=[b,...extra].sort((x,y)=>volOf(x)-volOf(y));all.forEach((x,i)=>{x.added=Date.now()+i;S.books[x.id]=x});if(LOCK[b.status])all.forEach(placeByStatus);else bottomList().push(...all.map(x=>x.id));
+    S.sample=false;save();renderAll();closePanel();toast(extra.length?`「${seriesOf(b)}」${all.length}冊を追加しました`:`「${b.title}」を追加しました`);return true};
   $('#aSave').onclick=save1;
   $('#aNext').onclick=()=>{if(save1())setTimeout(()=>addBook({autoscan:true}),300)};
-  $('#where').value=S.lastWhere&&curCase().shelves.some(x=>x.id===S.lastWhere)?S.lastWhere:curCase().shelves.at(-1).id;
 }
 /* シリーズのほかの巻：国立国会図書館サーチで同じシリーズ名・同じ出版社の巻を集める */
 let SER={list:[],on:new Set()};
@@ -770,11 +768,9 @@ function bulkAdd(){const Q=[];const owned=new Set(Object.values(S.books).map(b=>
    <p class="msg" id="lmsg">本を1冊ずつカメラにかざしてください。読めるとブルッと震えて下の一覧に入ります。</p>
    <button class="pri" id="scanBtn" style="width:100%;min-height:48px">読み取りをやめる</button>
    <div class="scan" id="scanBox" hidden></div>
-   <div class="fld" style="margin-top:12px"><label>状態</label><select id="bst">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${k==='done'?'selected':''}>${v}</option>`).join('')}</select><p class="note" style="margin:4px 0 0">積読・読書中にすると、置き場所ではなくそれぞれの棚に入ります</p></div>
-   <div class="fld"><label>置き場所</label><select id="where">${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
+   <div class="fld" style="margin-top:12px"><label>状態</label><select id="bst">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${k==='done'?'selected':''}>${v}</option>`).join('')}</select><p class="note" style="margin:4px 0 0">読了は本棚の最後に、積読・読書中・読みたいはそれぞれの棚に入ります</p></div>
    <button class="pri" id="bulkSave" style="width:100%;min-height:48px" disabled>0冊をまとめて登録</button>
    <div id="bq" style="margin-top:8px"></div>`);
-  $('#where').value=S.lastWhere&&curCase().shelves.some(x=>x.id===S.lastWhere)?S.lastWhere:curCase().shelves.at(-1).id;
   const draw=()=>{const ok=Q.filter(q=>q.b).length;const bs=$('#bulkSave');if(!bs)return;bs.textContent=`${ok}冊をまとめて登録`;bs.disabled=!ok;
     $('#bq').innerHTML=Q.map((q,i)=>`<div class="rel">${q.b?faceHTML(q.b,84):'<div></div>'}<div><b>${esc(q.b?.title||q.isbn)}</b><div class="d">${q.b?esc(q.b.author)+'・'+esc(q.b.publisher):q.err?esc(q.err):'検索中…'}</div></div><button data-rm="${i}" aria-label="一覧から外す">外す</button></div>`).reverse().join('')};
   $('#bq').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){Q.splice(+b.dataset.rm,1);draw()}};
@@ -785,8 +781,8 @@ function bulkAdd(){const Q=[];const owned=new Set(Object.values(S.books).map(b=>
     const q={isbn};Q.push(q);draw();beep();flash(`${Q.length}冊目 OK`);m.textContent=`${Q.length}冊目を読み取りました。次の本をかざしてください`;
     const r=await lookup(isbn);if(r)flash(`${Q.indexOf(q)+1}冊目：${r.title}`);if(r){delete r.src;q.b={id:uid(),isbn,title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...r}}else q.err='本の情報が見つかりませんでした（外すか、あとで手入力）';draw()};
   $('#scanBtn').onclick=()=>{if(CAM){stopScan();$('#scanBtn').textContent='読み取りを再開する'}else{scan(onCode,true)}};
-  $('#bulkSave').onclick=()=>{const w=$('#where').value;const L=listOf(w);const st=$('#bst').value;let n=0;for(const q of Q)if(q.b){q.b.added=Date.now()+n;q.b.status=st;S.books[q.b.id]=q.b;if(LOCK[st])placeByStatus(q.b);else L.push(q.b.id);n++}
-    S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(`${n}冊を登録しました`)};
+  $('#bulkSave').onclick=()=>{const L=bottomList();const st=$('#bst').value;let n=0;for(const q of Q)if(q.b){q.b.added=Date.now()+n;q.b.status=st;S.books[q.b.id]=q.b;if(LOCK[st])placeByStatus(q.b);else L.push(q.b.id);n++}
+    S.sample=false;save();renderAll();closePanel();toast(`${n}冊を登録しました`)};
   scan(onCode,true);
 }
 
@@ -924,7 +920,7 @@ $('#findBtn').onclick=()=>{show('list');scrollTo(0,0);setTimeout(()=>$('#q').foc
 $('#findBack').onclick=()=>show('shelf');
 $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</button><h2>使い方</h2><div class="help">
   <h3>本を登録する</h3><ul>
-  <li>右上の「＋ 本を追加」から、バーコードを読み取るか、書名や著者名で探して登録します。</li>
+  <li>右上の「＋ 本を追加」から、バーコードを読み取るか、書名や著者名で探して登録します。読了の本は表示中の本棚の最後（一番下の段の終わり）に、積読・読書中・読みたいの本はそれぞれの棚に入ります。</li>
   <li>「何冊も続けて読み取る」を使うと、バーコードを次々に読み取ってまとめて登録できます。</li>
   <li>マンガなど巻数のある本を1冊読み込むと、同じシリーズでまだ登録していない巻が出てきます。持っている巻を選ぶと一緒に登録できます。</li></ul>
   <h3>本を並べる</h3><ul>
@@ -969,7 +965,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v42';let updAt=0;
+const APP_V='hondana-v43';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
