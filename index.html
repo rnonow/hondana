@@ -128,6 +128,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
 .viewbar{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:13px}.viewbar[hidden]{display:none}.viewbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.viewbar button{min-height:36px;padding:4px 12px;font-size:13px}
+.pick{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:46px;padding:8px 14px;border-radius:10px;text-align:left;font-weight:700}.pick small{font-weight:400;opacity:.7;white-space:nowrap}.pick[aria-pressed=true]{background:var(--ink);color:var(--wall);border-color:var(--ink)}.picks{display:flex;flex-direction:column;gap:6px}
+#v-list.pm #fst,#v-list.pm #sort{display:none}
 .listact{display:flex;align-items:center;gap:8px}.listact .note{flex:1;margin:0}.listact button{min-height:36px;padding:4px 12px;font-size:13px}
 .cchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.cchips.one{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:3px 3px 4px;margin:0 -3px}.cchips.one::-webkit-scrollbar{display:none}.cchips.one>*{flex:none}.cchip{width:38px;height:38px;min-height:0;padding:0;border-radius:50%;background:var(--c);color:var(--t);border:2px solid #0002;font-weight:700}.cchip.on{outline:3px solid var(--acc);outline-offset:2px}
 #seg{position:sticky;bottom:12px;z-index:29;box-shadow:0 6px 20px #0002}#v-news{display:flex;flex-direction:column}#v-news[hidden]{display:none}#seg{order:9;margin:16px 0 0}
@@ -244,6 +246,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 
   <section id="v-list" class="sec" hidden>
     <div class="vhead" style="display:flex;align-items:center;gap:8px;margin:0 0 10px"><h2 style="margin:0;font-size:20px;flex:1">蔵書を探す</h2><button id="findBack">本棚に戻る</button></div>
+    <div class="seg sub" id="fmode"><button data-m="book" aria-pressed="true">本</button><button data-m="author" aria-pressed="false">著者</button><button data-m="pub" aria-pressed="false">出版社</button></div>
     <div class="filters">
       <input id="q" type="search" placeholder="タイトル・著者・出版社で検索" aria-label="検索">
       <select id="fst" aria-label="状態"><option value="">すべての状態</option><option value="unread">積読</option><option value="reading">読書中</option><option value="done">読了</option><option value="wish">読みたい</option></select>
@@ -833,7 +836,20 @@ function bulkAdd(){const Q=[];const owned=new Set(Object.values(S.books).map(b=>
 function fitGrid(){requestAnimationFrame(()=>{if($('#v-list').hidden)return;const g=$('#grid'),t=$('#tabs');const lim=getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top-8:innerHeight-16;
   g.classList.add('iscroll');g.style.maxHeight=Math.max(160,lim-g.getBoundingClientRect().top)+'px'})}
 addEventListener('resize',fitGrid);
-function renderList(){fitGrid();const q=$('#q').value.trim().toLowerCase(),st=$('#fst').value,so=$('#sort').value;
+let FMODE='book';const PICK={author:new Set(),pub:new Set()};
+const nameOf={author:b=>String(b.author||'').split('・').map(x=>x.trim()).filter(Boolean),pub:b=>b.publisher?[b.publisher.trim()]:[]};
+$('#fmode').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;FMODE=b.dataset.m;for(const x of $('#fmode').children)x.setAttribute('aria-pressed',x===b);
+  $('#v-list').classList.toggle('pm',FMODE!=='book');$('#q').placeholder=FMODE==='book'?'タイトル・著者・出版社で検索':FMODE==='author'?'著者名で絞り込む':'出版社名で絞り込む';$('#grid').scrollTop=0;renderList()};
+/* 著者・出版社の一覧：選んだものの本だけを本棚に並べる */
+function renderPicks(){const k=FMODE,q=$('#q').value.trim().toLowerCase(),P=PICK[k];const cnt=new Map();
+  for(const b of Object.values(S.books))for(const n of nameOf[k](b))cnt.set(n,(cnt.get(n)||0)+1);
+  const L=[...cnt].filter(([n])=>!q||n.toLowerCase().includes(q)).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ja'));
+  const nb=Object.values(S.books).filter(b=>nameOf[k](b).some(n=>P.has(n))).length;
+  $('#count').textContent=P.size?`${P.size}${k==='author'?'人':'社'}・${nb}冊を選択中`:`${cnt.size}${k==='author'?'人':'社'}（タップで選ぶ）`;
+  $('#toShelf').textContent='選んだ本を本棚に並べる';$('#toShelf').disabled=!P.size;
+  $('#grid').className='picks iscroll';$('#grid').innerHTML=L.map(([n,c])=>`<button class="pick" data-pk="${esc(n)}" aria-pressed="${P.has(n)}">${esc(n)}<small>${c}冊</small></button>`).join('')||'<p class="note">見つかりません</p>'}
+$('#grid').addEventListener('click',e=>{const b=e.target.closest('[data-pk]');if(!b)return;const P=PICK[FMODE],n=b.dataset.pk;P.has(n)?P.delete(n):P.add(n);renderList()});
+function renderList(){fitGrid();if(FMODE!=='book')return renderPicks();$('#grid').className='grid iscroll';$('#toShelf').textContent='本棚に並べて見る';const q=$('#q').value.trim().toLowerCase(),st=$('#fst').value,so=$('#sort').value;
   let a=Object.values(S.books).filter(b=>(!st||b.status===st)&&(!q||[b.title,b.author,b.publisher,b.isbn].join(' ').toLowerCase().includes(q)));
   const cmp={added:(x,y)=>y.added-x.added,title:(x,y)=>x.title.localeCompare(y.title,'ja'),author:(x,y)=>x.author.localeCompare(y.author,'ja')||byVolB(x,y),publisher:(x,y)=>String(x.publisher).localeCompare(String(y.publisher),'ja')||x.author.localeCompare(y.author,'ja')||byVolB(x,y),pub:(x,y)=>String(y.pubdate).localeCompare(String(x.pubdate))}[so];
   a.sort(cmp);
@@ -841,7 +857,10 @@ function renderList(){fitGrid();const q=$('#q').value.trim().toLowerCase(),st=$(
   $('#grid').innerHTML=a.map(b=>`<button class="card" data-id="${b.id}">${faceHTML(b,170)}<span class="t">${esc(b.title)}</span><span class="a">${esc(b.author)}・${ST[b.status]||''}</span></button>`).join('')||'<p class="note">該当する本がありません</p>'}
 let LIST=[];const byVolB=(x,y)=>seriesOf(x).localeCompare(seriesOf(y),'ja')||volOf(x)-volOf(y);
 /* 探した結果を本棚に並べて見る（保存している並び順は変えない。「元の本棚に戻す」で戻る） */
-$('#toShelf').onclick=()=>{const so=$('#sort').value,q=$('#q').value.trim(),st=$('#fst').value;const key={author:b=>b.author||'著者なし',publisher:b=>b.publisher||'出版社なし'}[so];
+$('#toShelf').onclick=()=>{if(FMODE!=='book'){const k=FMODE,P=PICK[k];const names=[...P].sort((a,b)=>a.localeCompare(b,'ja'));
+    const groups=names.map(n=>[n,Object.values(S.books).filter(b=>nameOf[k](b).includes(n)).sort(byVolB).map(b=>b.id)]);
+    VIEW={label:`${k==='author'?'著者':'出版社'}：${names.join('・')}（${new Set(groups.flatMap(g=>g[1])).size}冊）`,groups};PAGE=0;show('shelf');renderShelf();return}
+  const so=$('#sort').value,q=$('#q').value.trim(),st=$('#fst').value;const key={author:b=>b.author||'著者なし',publisher:b=>b.publisher||'出版社なし'}[so];
   const groups=[];for(const b of LIST){const g=key?key(b):'';if(!groups.length||groups.at(-1)[0]!==g)groups.push([g,[]]);groups.at(-1)[1].push(b.id)}
   const lab=[q&&`「${q}」`,st&&ST[st],$('#sort').selectedOptions[0].textContent].filter(Boolean).join('・');
   VIEW={label:`${lab}（${LIST.length}冊）`,groups:groups.map(([g,ids])=>[g||'　',ids])};PAGE=0;show('shelf');renderShelf()};
@@ -1003,7 +1022,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>「読書中」「積読」「読みたい」にした本は、下のタブ「読書中」にあるそれぞれの棚へ自動で入ります。積読は横に寝かせて積み上がり、新しい本が一番上です（多い時は山の中を上下にスクロール）。3つの棚の間でドラッグすると、状態もその棚に合わせて変わります。読了にすると本棚の一番下の段の最後に移ります。</li>
   <li>本棚の右上の「…」から、本棚や段の追加、画像で保存、共有リンク、まとめて選ぶなどができます。データと使い方は右上の ⚙ にあります。</li>
   <li>背表紙の色は、タイトルの言葉（「海」なら青など）からおすすめの色が最初に選ばれます。本をタップして編集すると、おすすめの色から選び直せます。文字の色は背景に合わせて白か黒に自動で変わります。</li>
-  <li>「蔵書を探す」で絞り込んだり並べ替えたりした本は、「本棚に並べて見る」で本棚に並べて見られます（著者順・出版社順なら著者・出版社ごとに段が分かれます）。「元の本棚に戻す」で元の並びに戻ります。並べて見ている間は本を動かせません。</li>
+  <li>「蔵書を探す」で絞り込んだり並べ替えたりした本は、「本棚に並べて見る」で本棚に並べて見られます（著者順・出版社順なら著者・出版社ごとに段が分かれます）。上の「著者」「出版社」に切り替えると一覧から選べて、選んだ著者・出版社の本だけが並びます。「元の本棚に戻す」で元の並びに戻ります。並べて見ている間は本を動かせません。</li>
   <li>本棚は本のようにページになっていて、1ページに3段ずつ入ります。左右にスワイプするか、下のバーをスライドしてめくります。段に入りきらない本は次の段へ、3段目の続きは次のページへ続きます。本を長押しで持ったまま画面の左右の端へ持っていくと、ページがめくれます。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>選書（新刊・おすすめ）</h3><ul>
@@ -1046,7 +1065,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v63';let updAt=0;
+const APP_V='hondana-v64';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
