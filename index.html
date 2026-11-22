@@ -104,6 +104,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .msg.err{color:var(--acc)}
 /* 一覧・新刊 */
 .sec{max-width:1240px}
+.grid.iscroll{padding:4px 4px 16px;margin-left:-4px;margin-right:-4px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:18px 14px;margin-top:12px}
 .card{white-space:normal;background:none;border:0;padding:0;text-align:left;min-height:0;display:flex;flex-direction:column;gap:6px}
 .card .face{--fh:170px;--k:1;margin:0;width:100%;height:auto;aspect-ratio:.7}
@@ -813,7 +814,11 @@ function bulkAdd(){const Q=[];const owned=new Set(Object.values(S.books).map(b=>
 }
 
 /* ---- 一覧 ---- */
-function renderList(){const q=$('#q').value.trim().toLowerCase(),st=$('#fst').value,so=$('#sort').value;
+/* 蔵書を探す：検索欄などは固定して、本の一覧だけをスクロール */
+function fitGrid(){requestAnimationFrame(()=>{if($('#v-list').hidden)return;const g=$('#grid'),t=$('#tabs');const lim=getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top-8:innerHeight-16;
+  g.classList.add('iscroll');g.style.maxHeight=Math.max(160,lim-g.getBoundingClientRect().top)+'px'})}
+addEventListener('resize',fitGrid);
+function renderList(){fitGrid();const q=$('#q').value.trim().toLowerCase(),st=$('#fst').value,so=$('#sort').value;
   let a=Object.values(S.books).filter(b=>(!st||b.status===st)&&(!q||[b.title,b.author,b.publisher,b.isbn].join(' ').toLowerCase().includes(q)));
   const cmp={added:(x,y)=>y.added-x.added,title:(x,y)=>x.title.localeCompare(y.title,'ja'),author:(x,y)=>x.author.localeCompare(y.author,'ja'),pub:(x,y)=>String(y.pubdate).localeCompare(String(x.pubdate))}[so];
   a.sort(cmp);
@@ -1004,20 +1009,21 @@ $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</butt
 
 /* ---- 画面切替 ---- */
 function renderAll(){renderShelf();renderList();renderNews();renderReco();renderBadge()}
-function show(v){if(v==='shelf')scrollTo(0,0);$('#caseMore').hidden=v!=='shelf';$('#findBtn').setAttribute('aria-pressed',v==='list');for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
+function show(v){if(v==='shelf'||v==='list')scrollTo(0,0);$('#caseMore').hidden=v!=='shelf';$('#findBtn').setAttribute('aria-pressed',v==='list');for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
   for(const s of ['shelf','read','list','news'])$('#v-'+s).hidden=s!==v;if(v==='shelf'&&Math.abs($('#case').clientWidth-PW)>4)renderShelf();if(location.hash!=='#'+v&&!location.hash.startsWith('#view='))history.replaceState(null,'','#'+v);
+  if(v==='list')fitGrid();
   if(v==='news'){showSeg(S.seg||'new');if(newsStale())checkNews();S.newsSeen=(S.news?.items||[]).map(x=>x.isbn);save();setTimeout(renderBadge,1500)}}
 /* 画面が上下にぶれないようにする：本棚は上下に動かさない。ほかの画面も、中身が画面に収まる時は動かさない（はみ出す時だけ上下にスクロール） */
 let TX=0,TY=0;
 document.addEventListener('touchstart',e=>{const t=e.touches[0];TX=t.clientX;TY=t.clientY},{passive:true});
 document.addEventListener('touchmove',e=>{if(D?.on||e.touches.length>1)return;if(e.target.closest('.panel,.menu,#viewer:not([hidden]),.scan'))return;const sc=e.target.closest('.iscroll');if(sc&&sc.scrollHeight>sc.clientHeight+1)return;
   const t=e.touches[0];if(Math.abs(t.clientY-TY)<=Math.abs(t.clientX-TX))return;
-  const el=document.scrollingElement;const nl=!$('#v-news').hidden&&$('#v-news .iscroll')&&!$('#nset').open&&!$('#rankSet details[open]');if(!$('#v-shelf').hidden||nl||el.scrollHeight<=innerHeight+2)e.preventDefault()},{passive:false});
+  const el=document.scrollingElement;const nl=!$('#v-list').hidden||!$('#v-news').hidden&&$('#v-news .iscroll')&&!$('#nset').open&&!$('#rankSet details[open]');if(!$('#v-shelf').hidden||nl||el.scrollHeight<=innerHeight+2)e.preventDefault()},{passive:false});
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v57';let updAt=0;
+const APP_V='hondana-v58';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
