@@ -93,6 +93,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .fld{margin-bottom:10px}.fld label{display:block;font-size:13px;color:var(--mute);margin-bottom:3px}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btns.stick{position:sticky;bottom:-20px;z-index:3;background:var(--panel);margin:12px -20px -20px;padding:10px 20px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -8px 16px -10px #0004;flex-wrap:nowrap}.btns.stick button{flex:1;min-height:48px}
 .x{float:right;min-height:36px;padding:4px 12px}
 .prev{display:flex;gap:14px;align-items:flex-end;margin:6px 0 14px}
 .prev .face{--fh:150px;--k:1;margin:0;flex:none}
@@ -608,20 +609,20 @@ function ask(label,val,cb){openPanel(`<button class="x" data-close>閉じる</bu
 function confirmP(t,cb){openPanel(`<button class="x" data-close>閉じる</button><h2>確認</h2><p>${esc(t)}</p><div class="btns"><button class="pri" id="cfOk">実行する</button><button data-close>やめる</button></div>`);$('#cfOk').onclick=()=>{cb();closePanel()}}
 
 /* ---- 本の詳細・編集 ---- */
-function form(b){return `
+function form(b,add){return `
   <div class="prev">${faceHTML(b,150)}<div class="pinfo">${b.title?`<b>${esc(b.title)}</b>${b.author?`<span>${esc(b.author)}</span>`:''}${b.publisher?`<span>${esc(b.publisher)}</span>`:''}${b.pubdate?`<span>${esc(fmtDate(b.pubdate))}</span>`:''}${b.isbn?`<span class="note">ISBN ${esc(b.isbn)}</span>`:''}`:'<span class="note">バーコードを読み取るか、キーワードで探すと、ここに本の情報が出ます</span>'}${b.cover||b.spine?'<button id="imgClr">撮った写真を外す</button>':''}</div></div>
   <details class="fixinfo" id="fixinfo"><summary class="note" style="cursor:pointer;min-height:40px;display:flex;align-items:center;margin:0 0 6px">▸ タイトルなどを手で入力・直す</summary>
   <div class="fld"><label>タイトル</label><input id="f-title" value="${esc(b.title)}"></div>
   <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
   </details>
-  <div class="two"><div class="fld"><label>状態</label><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
-  <div class="fld"><label>本棚での見せ方</label><select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
+${add?'':`  <div class="two"><div class="fld"><label>状態</label><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
+  <div class="fld"><label>本棚での見せ方</label><select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>`}
   <div class="fld"><label>背表紙の色（左ほどおすすめ。文字の色は自動）</label><div class="cchips" id="f-chips">${chipsHTML(recoColors(b),look(b).c)}<input type="color" id="f-color" value="${look(b).c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
   ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}
   <div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>
   <div class="fld"><label>メモ</label><textarea id="f-memo" rows="3">${esc(b.memo)}</textarea></div>`}
-function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol'])b[k]=$('#f-'+k).value.trim();
+function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol']){const el=$('#f-'+k);if(el)b[k]=el.value.trim()}
   const c=$('#f-color').value,t=ink(c);const L0=look(b);
   if(c!==L0.c){if($('#f-sall')?.checked){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c,t};for(const x of seriesBooks(b)){delete x.color;delete x.tcolor}delete b.color;delete b.tcolor}else{b.color=c;b.tcolor=t}}
   b.isbn=normIsbn(b.isbn)||b.isbn}
@@ -663,7 +664,7 @@ async function ndl(qs){let r;for(let k=0;k<3;k++){r=await fetch('https://ndlsear
     return {isbn,title:[cleanTitle(g(i,'dc:title')||g(i,'title')),g(i,'dcndl:volume')].filter(Boolean).join(' '),author:[...i.getElementsByTagName('dc:creator')].map(e=>ndlName(e.textContent)).filter((v,k,a)=>a.indexOf(v)===k).join('・'),
       publisher:g(i,'dc:publisher'),pubdate:ndlDate(g(i,'dcterms:issued')),cover:''}})}
 const fmtDate=d=>{d=String(d||'');return d.length===8?`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`:d.length===6?`${d.slice(0,4)}-${d.slice(4)}`:d};
-function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...pre};
+function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title:'',author:'',publisher:'',pubdate:'',status:'done',mode:'spine',memo:'',cover:'',added:Date.now(),...pre};
   openPanel(`<button class="x" data-close>閉じる</button><h2>本を追加</h2>
    <button class="pri" id="scanBtn" style="width:100%;min-height:52px">カメラでバーコードを読み取る</button>
    <button id="bulkBtn" style="width:100%;margin-top:8px">何冊も続けて読み取る（まとめて登録）</button>
@@ -673,8 +674,8 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
    <div id="kres"></div>
    <p class="msg" id="lmsg"></p>
    <div id="serBox"></div>
-   <div id="fwrap">${form(b)}</div>
-   <div class="btns"><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
+   <div id="fwrap">${form(b,1)}</div>
+   <div class="btns stick"><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
   bindImg(b);
   const go=async()=>{const isbn=normIsbn($('#isbn').value);const m=$('#lmsg');m.className='msg';
     if(!isbn){m.textContent='ISBNの桁数が正しくありません';m.classList.add('err');return}
@@ -683,7 +684,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
     const r=await lookup(isbn);readForm(b);b.isbn=isbn;
     if(r){Object.assign(b,r);delete b.src;if(!dup)m.textContent=`${r.src} で見つかりました。内容を確認して追加してください。`}
     else{m.textContent='見つかりませんでした（またはこの環境では外部APIに接続できません）。手入力してください。';m.classList.add('err')}
-    $('#fwrap').innerHTML=form(b);bindImg(b);showSeries(b)};
+    $('#fwrap').innerHTML=form(b,1);bindImg(b);showSeries(b)};
   $('#scanBtn').onclick=()=>{primeSound();$('#lmsg').className='msg';$('#lmsg').textContent='本の裏表紙の「978」で始まるバーコードを枠に入れてください';scan(code=>{$('#isbn').value=code;go()})};
   if(pre?.autoscan)$('#scanBtn').click();
   const kwgo=async()=>{const q=$('#kw').value.trim();if(!q)return;const m=$('#lmsg'),box=$('#kres');m.className='msg';m.textContent='検索中…';box.innerHTML='';$('#kw').blur();
@@ -694,7 +695,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
     m.textContent=`${list.length}件見つかりました。登録したい本を選んでください。`;
     box.innerHTML=list.map((n,i)=>`<div class="rel">${faceHTML(n,84)}<div><b>${esc(n.title)}</b><div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div></div><button data-k="${i}">選ぶ</button></div>`).join('');
     box.onclick=e=>{const btn=e.target.closest('[data-k]');if(!btn)return;const n=list[+btn.dataset.k];box.innerHTML='';
-      Object.assign(b,n);$('#isbn').value=n.isbn;$('#fwrap').innerHTML=form(b);bindImg(b);go()}};
+      Object.assign(b,n);$('#isbn').value=n.isbn;$('#fwrap').innerHTML=form(b,1);bindImg(b);go()}};
   $('#bulkBtn').onclick=()=>{primeSound();bulkAdd()};
   $('#kwBtn').onclick=kwgo;$('#kw').onkeydown=e=>{if(e.key==='Enter')kwgo()};
   const save1=()=>{readForm(b);if(!b.title){$('#fixinfo').open=true;$('#f-title').focus();toast('本を読み取るか探すか、タイトルを入れてください');return false}
@@ -923,7 +924,7 @@ $('#findBtn').onclick=()=>{show('list');scrollTo(0,0);setTimeout(()=>$('#q').foc
 $('#findBack').onclick=()=>show('shelf');
 $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</button><h2>使い方</h2><div class="help">
   <h3>本を登録する</h3><ul>
-  <li>右上の「＋ 本を追加」から、バーコードを読み取るか、書名や著者名で探して登録します。読了の本は表示中の本棚の最後（一番下の段の終わり）に、積読・読書中・読みたいの本はそれぞれの棚に入ります。</li>
+  <li>右上の「＋ 本を追加」から、バーコードを読み取るか、書名や著者名で探して登録します。追加した本は「読了」として、表示中の本棚の最後（一番下の段の終わり）に入ります。積読などにしたい時は、本をタップして状態を変えるか、読書中タブの棚へドラッグしてください。</li>
   <li>「何冊も続けて読み取る」を使うと、バーコードを次々に読み取ってまとめて登録できます。</li>
   <li>マンガなど巻数のある本を1冊読み込むと、同じシリーズでまだ登録していない巻が出てきます。持っている巻を選ぶと一緒に登録できます。</li></ul>
   <h3>本を並べる</h3><ul>
@@ -968,7 +969,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v48';let updAt=0;
+const APP_V='hondana-v49';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
