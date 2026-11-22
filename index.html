@@ -181,6 +181,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
   </div>
   <nav class="tabs" id="tabs">
     <button data-v="shelf" aria-pressed="true">本棚</button>
+    <button data-v="read" aria-pressed="false">読書中</button>
     <button data-v="news" aria-pressed="false">新刊チェック</button>
   </nav>
   <span class="sp"></span>
@@ -197,17 +198,22 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
     <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。右上の「＋ 本を追加」から、バーコードやキーワードで登録できます。</p>
     <div class="case" id="case"></div>
-    <div class="tray lockshelf"><h3>読書中 <span class="note" id="readN"></span></h3><div id="readGather"></div>
+  </section>
+
+  <section id="v-read" hidden>
+    <div class="tray lockshelf" style="margin-top:0;margin-bottom:22px"><h3>読書中 <span class="note" id="readN"></span></h3><div id="readGather"></div>
       <div class="row locked" id="readRow" data-shelf="reading"></div></div>
-    <div class="tray lockshelf"><h3>積読 <span class="note" id="tsunN"></span></h3><div id="tsunGather"></div>
+    <div class="tray lockshelf" style="margin-top:0;margin-bottom:22px"><h3>積読 <span class="note" id="tsunN"></span></h3><div id="tsunGather"></div>
       <div class="row locked" id="tsunRow" data-shelf="tsun"></div></div>
+    <div class="tray lockshelf" style="margin-top:0;margin-bottom:22px"><h3>読みたい <span class="note" id="wishN"></span></h3><div id="wishGather"></div>
+      <div class="row locked" id="wishRow" data-shelf="wish"></div></div>
   </section>
 
   <section id="v-list" class="sec" hidden>
     <div class="vhead" style="display:flex;align-items:center;gap:8px;margin:0 0 10px"><h2 style="margin:0;font-size:20px;flex:1">蔵書を探す</h2><button id="findBack">本棚に戻る</button></div>
     <div class="filters">
       <input id="q" type="search" placeholder="タイトル・著者・出版社で検索" aria-label="検索">
-      <select id="fst" aria-label="状態"><option value="">すべての状態</option><option value="unread">積読</option><option value="reading">読書中</option><option value="done">読了</option><option value="wish">欲しい</option></select>
+      <select id="fst" aria-label="状態"><option value="">すべての状態</option><option value="unread">積読</option><option value="reading">読書中</option><option value="done">読了</option><option value="wish">読みたい</option></select>
       <select id="sort" aria-label="並び順"><option value="added">追加が新しい順</option><option value="title">タイトル順</option><option value="author">著者順</option><option value="pub">発売日が新しい順</option></select>
     </div>
     <p class="note" id="count"></p>
@@ -245,7 +251,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=()=>Math.random().toString(36).slice(2,10);
 const hash=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;return Math.abs(h)};
 const PAL=[['#2d4a6b','#f1e9da'],['#7d2a2a','#f6e7d7'],['#e5c76b','#2a2420'],['#3d6b4f','#f2efe6'],['#ddd5c4','#2c2a26'],['#1f1f22','#e9c46a'],['#b4532a','#fff3e4'],['#5b4b8a','#f3eefc'],['#8fb3c9','#1c2a33'],['#c98b8b','#2b1d1d'],['#f2f0ea','#b4532a'],['#2a6f73','#fbefd9']];
-const ST={unread:'積読',reading:'読書中',done:'読了',wish:'欲しい'};
+const ST={unread:'積読',reading:'読書中',done:'読了',wish:'読みたい'};
 
 /* 初回は空の本棚から始める */
 const emptyState=()=>{const c={id:uid(),name:'わたしの本棚',shelves:['上段','中段','下段'].map(n=>({id:uid(),name:n,books:[]}))};return {books:{},tray:[],follows:[],cases:[c],cur:c.id}};
@@ -311,30 +317,30 @@ function renderShelf(){sweepTray();renderSampleBar();renderSerDrag();
   const c=curCase();
   $('#case').innerHTML=c.shelves.map(s=>`<div class="shelf"><button class="sname" data-sid="${s.id}" title="段の名前を変更・削除">${esc(s.name)}</button>
     <div class="row" data-shelf="${s.id}">${s.books.map(bookHTML).join('')||'<span class="empty">ここに本をドラッグ</span>'}</div><div class="board"></div></div>`).join('');
-  for(const [k,st,row,nEl,gEl,lab,emp] of [['reading','reading','#readRow','#readN','#readGather','読書中','「読書中」にした本がここに入ります'],['tsun','unread','#tsunRow','#tsunN','#tsunGather','積読','「積読」にした本が登録順にここに入ります']]){
+  for(const [k,st,row,nEl,gEl,lab,emp] of [['reading','reading','#readRow','#readN','#readGather','読書中','「読書中」にした本がここに入ります'],['tsun','unread','#tsunRow','#tsunN','#tsunGather','積読','「積読」にした本が登録順にここに入ります'],['wish','wish','#wishRow','#wishN','#wishGather','読みたい','「読みたい」にした本がここに入ります']]){
     const L=listOf(k);for(const id of [...L]){const b=S.books[id];if(!b||b.status!==st){L.splice(L.indexOf(id),1);if(b&&!placeOf(id))bottomList().push(id)}}L.sort(byAdded);
     $(row).innerHTML=L.map(bookHTML).join('')||`<span class="empty">${emp}</span>`;$(nEl).textContent=L.length?`${L.length}冊`:'';
     const out=Object.values(S.books).filter(b=>b.status===st&&!L.includes(b.id));
     $(gEl).innerHTML=out.length?`<button data-gather="${k}">ほかの場所にある${lab}の本（${out.length}冊）もここに集める</button>`:''}
 }
-document.addEventListener('click',e=>{const g=e.target.closest('[data-gather]');if(!g)return;const k=g.dataset.gather,st=k==='tsun'?'unread':'reading';
+document.addEventListener('click',e=>{const g=e.target.closest('[data-gather]');if(!g)return;const k=g.dataset.gather,st={tsun:'unread',reading:'reading',wish:'wish'}[k];
   const out=Object.values(S.books).filter(b=>b.status===st&&!listOf(k).includes(b.id));
   confirmP(`本棚にある「${ST[st]}」の本${out.length}冊を、${ST[st]}の棚に移します。読了にすると本棚の一番下の段に戻ります。`,()=>{for(const b of out)placeByStatus(b);save();renderShelf();toast(`${out.length}冊を移しました`)})});
-const listOf=sid=>sid==='tray'?S.tray:sid==='tsun'?(S.tsun??=[]):sid==='reading'?(S.reading??=[]):S.cases.flatMap(c=>c.shelves).find(s=>s.id===sid)?.books;
-function removeEverywhere(id){S.tray=S.tray.filter(x=>x!==id);S.tsun=(S.tsun||[]).filter(x=>x!==id);S.reading=(S.reading||[]).filter(x=>x!==id);for(const c of S.cases)for(const s of c.shelves)s.books=s.books.filter(x=>x!==id)}
+const listOf=sid=>sid==='tray'?S.tray:sid==='tsun'?(S.tsun??=[]):sid==='reading'?(S.reading??=[]):sid==='wish'?(S.wish??=[]):S.cases.flatMap(c=>c.shelves).find(s=>s.id===sid)?.books;
+function removeEverywhere(id){S.tray=S.tray.filter(x=>x!==id);S.tsun=(S.tsun||[]).filter(x=>x!==id);S.reading=(S.reading||[]).filter(x=>x!==id);S.wish=(S.wish||[]).filter(x=>x!==id);for(const c of S.cases)for(const s of c.shelves)s.books=s.books.filter(x=>x!==id)}
 /* 積読・読書中の棚：状態で自動的に置き場所が決まり、読了になるまでドラッグでは動かせない */
-const LOCK={unread:'tsun',reading:'reading'};
-const isLocked=id=>(S.tsun||[]).includes(id)||(S.reading||[]).includes(id);
+const LOCK={unread:'tsun',reading:'reading',wish:'wish'};
+const isLocked=id=>['tsun','reading','wish'].some(k=>(S[k]||[]).includes(id));
 const byAdded=(a,b)=>(S.books[a]?.added||0)-(S.books[b]?.added||0);
 function placeByStatus(b){const k=LOCK[b.status];
   if(k){if(listOf(k).includes(b.id))return;removeEverywhere(b.id);listOf(k).push(b.id);listOf(k).sort(byAdded);return}
   if(isLocked(b.id)){removeEverywhere(b.id);bottomList().push(b.id)}}
-function placeOf(id){if(S.tray.includes(id))return '未配置';if((S.tsun||[]).includes(id))return '積読の棚';if((S.reading||[]).includes(id))return '読書中の棚';for(const c of S.cases)for(const s of c.shelves)if(s.books.includes(id))return `${c.name} / ${s.name}`;return ''}
+function placeOf(id){if(S.tray.includes(id))return '未配置';if((S.tsun||[]).includes(id))return '積読の棚';if((S.reading||[]).includes(id))return '読書中の棚';if((S.wish||[]).includes(id))return '読みたい棚';for(const c of S.cases)for(const s of c.shelves)if(s.books.includes(id))return `${c.name} / ${s.name}`;return ''}
 
 /* まとめて選ぶ */
 let SELMODE=false;const SEL=new Set();
 function renderSel(){$('#selbar').hidden=!SELMODE;$('#selMode').setAttribute('aria-pressed',SELMODE);$('#selN').textContent=SEL.size+'冊選択中';
-  for(const el of document.querySelectorAll('#v-shelf .bk'))el.classList.toggle('sel',SEL.has(el.dataset.id))}
+  for(const el of document.querySelectorAll('#v-shelf .bk,#v-read .bk'))el.classList.toggle('sel',SEL.has(el.dataset.id))}
 $('#sampleKeep').onclick=()=>{S.sampleKeep=true;save();renderSampleBar()};
 $('#sampleDel').onclick=()=>{const L=sampleBooks();confirmP(`次の${L.length}冊を消します。自分で登録した本は消えません。\n${L.map(b=>'・'+b.title).join(' ')}`,()=>{for(const b of L){removeEverywhere(b.id);delete S.books[b.id]}save();renderAll();toast(`サンプルの本を${L.length}冊消しました`)})};
 function renderSerDrag(){$('#serDrag').setAttribute('aria-pressed',S.serDrag!==false)}
@@ -356,7 +362,7 @@ $('#selStatus').onclick=()=>{if(!SEL.size)return toast('先に本を選んでく
 $('#selSeries').onclick=()=>{if(!SEL.size)return toast('先にシリーズの本を1冊タップしてください');const ser=new Set([...SEL].map(id=>seriesOf(S.books[id])));
   for(const b of Object.values(S.books))if(ser.has(seriesOf(b))&&placeOf(b.id))SEL.add(b.id);renderSel();toast(`${SEL.size}冊を選びました`)};
 $('#selSort').onclick=()=>{if(SEL.size<2)return toast('2冊以上選んでください');
-  const slots=[...S.cases.flatMap(c=>c.shelves.map(s=>s.id)),'tsun','reading'];const sid=slots.find(x=>listOf(x).some(id=>SEL.has(id)));const at=listOf(sid).findIndex(id=>SEL.has(id));
+  const slots=[...S.cases.flatMap(c=>c.shelves.map(s=>s.id)),'tsun','reading','wish'];const sid=slots.find(x=>listOf(x).some(id=>SEL.has(id)));const at=listOf(sid).findIndex(id=>SEL.has(id));
   const ids=[...SEL].sort(byVol);for(const id of ids)removeEverywhere(id);listOf(sid).splice(at,0,...ids);save();renderShelf();toast('巻数順に並べました')};
 /* ---- 本棚を画像にする（3段ずつ1枚） ---- */
 const loadImg=(src,cors)=>new Promise(ok=>{if(!src)return ok(null);const i=new Image();if(cors)i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=src;setTimeout(()=>ok(null),6000)});
@@ -462,18 +468,18 @@ function closeViewer(){history.replaceState(null,'',location.pathname+location.s
 addEventListener('hashchange',openViewer);
 /* 同じ段にある同じシリーズ（巻のある本）をまとめて返す。1冊だけなら null */
 function sameShelfSeries(id){const b=S.books[id];if(!b||!volOf(b))return null;const k=skey(b);
-  const sid=[...S.cases.flatMap(c=>c.shelves.map(x=>x.id)),'tsun','reading'].find(x=>listOf(x).includes(id));if(!sid)return null;
+  const sid=[...S.cases.flatMap(c=>c.shelves.map(x=>x.id)),'tsun','reading','wish'].find(x=>listOf(x).includes(id));if(!sid)return null;
   const L=listOf(sid).filter(x=>S.books[x]&&skey(S.books[x])===k);return L.length>1?L:null}
 /* ドラッグ：マウスはそのまま、タッチは長押し（約0.4秒）で持ち上げる */
 let D=null;
 function startDrag(x,y){D.on=true;const r=D.el.getBoundingClientRect();D.dx=x-r.left;D.dy=y-r.top;
   D.group=SEL.has(D.id)&&SEL.size>1?[...SEL]:(!SELMODE&&S.serDrag!==false)?sameShelfSeries(D.id):null;D.gs=new Set(D.group||[]);
-  D.g=D.el.cloneNode(true);D.g.classList.remove('lift','sel');D.g.classList.add('ghost');if(D.group){D.g.insertAdjacentHTML('beforeend',`<span class="cnt">${D.group.length}冊</span>`);for(const el of document.querySelectorAll('#v-shelf .bk'))if(D.gs.has(el.dataset.id))el.classList.add('dragging')}document.body.append(D.g);
+  D.g=D.el.cloneNode(true);D.g.classList.remove('lift','sel');D.g.classList.add('ghost');if(D.group){D.g.insertAdjacentHTML('beforeend',`<span class="cnt">${D.group.length}冊</span>`);for(const el of document.querySelectorAll('#v-shelf .bk,#v-read .bk'))if(D.gs.has(el.dataset.id))el.classList.add('dragging')}document.body.append(D.g);
   D.g.style.left=r.left+'px';D.g.style.top=r.top+'px';D.el.classList.add('dragging');document.body.classList.add('dragging');
   D.m=document.createElement('div');D.m.className='mark'}
-function endDrag(){if(!D)return;clearTimeout(D.timer);D.el.classList.remove('lift','dragging');for(const el of document.querySelectorAll('#v-shelf .bk.dragging'))el.classList.remove('dragging');document.body.classList.remove('dragging');D.g?.remove();D.m?.remove()}
+function endDrag(){if(!D)return;clearTimeout(D.timer);D.el.classList.remove('lift','dragging');for(const el of document.querySelectorAll('#v-shelf .bk.dragging,#v-read .bk.dragging'))el.classList.remove('dragging');document.body.classList.remove('dragging');D.g?.remove();D.m?.remove()}
 document.addEventListener('pointerdown',e=>{
-  const bk=e.target.closest('#v-shelf .bk');if(!bk||e.button>0)return;
+  const bk=e.target.closest('#v-shelf .bk,#v-read .bk');if(!bk||e.button>0)return;
   D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse'};
   if(D.touch){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;bk.classList.add('lift');navigator.vibrate?.(12);startDrag(d.lx??d.x,d.ly??d.y)},400)}
 });
@@ -502,7 +508,7 @@ document.addEventListener('pointerup',()=>{
   if(!d.on){if(SELMODE){SEL.has(d.id)?SEL.delete(d.id):SEL.add(d.id);renderSel()}else openBook(d.id);return}
   if(d.to){const ids=d.group?d.group.sort(byVol):[d.id];const was=new Set(ids.filter(isLocked));for(const id of ids)removeEverywhere(id);const L=listOf(d.to.sid);const at=d.to.ref?L.indexOf(d.to.ref):L.length;L.splice(at<0?L.length:at,0,...ids);
     // 置いた棚で状態も変える：積読の棚→積読、読書中の棚→読書中、積読・読書中の棚から外へ出したら読了
-    const to={tsun:'unread',reading:'reading'}[d.to.sid];let ch=0;for(const id of ids){const b=S.books[id];const ns=to||(was.has(id)?'done':b.status);if(b.status!==ns){b.status=ns;ch++}}
+    const to={tsun:'unread',reading:'reading',wish:'wish'}[d.to.sid];let ch=0;for(const id of ids){const b=S.books[id];const ns=to||(was.has(id)?'done':b.status);if(b.status!==ns){b.status=ns;ch++}}
     if(to)L.sort(byAdded);save();
     const msg=ch?`${ids.length>1?ids.length+'冊を':''}「${ST[to||'done']}」にしました`:d.group?`${ids.length}冊を巻数順に移動しました`:'';if(msg)toast(msg)}
   renderShelf();
@@ -799,7 +805,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>同じ段にある同じシリーズは、まとめて巻数順に動きます。1冊だけ動かしたいときは「シリーズまとめて動かす」をオフにします。</li>
   <li>「まとめて選ぶ」で本をタップして選ぶと、まとめて動かしたり、巻数順に並べたり、色を変えたりできます。</li>
   <li>本をタップすると詳細が開きます。「表紙を見せて飾る」にすると表紙が見える置き方になります。背表紙の色もここで変えられます（同じシリーズにまとめて使えます）。</li>
-  <li>「読書中」「積読」にした本は、本棚の下にあるそれぞれの棚へ自動で入ります（積読は登録順）。読了にすると本棚の一番下の段の最後に移ります。逆に、本をドラッグで積読・読書中の棚へ入れるとその状態に、そこから本棚へ出すと「読了」になります。</li>
+  <li>「読書中」「積読」「読みたい」にした本は、下のタブ「読書中」にあるそれぞれの棚へ自動で入ります（積読は登録順）。3つの棚の間でドラッグすると、状態もその棚に合わせて変わります。読了にすると本棚の一番下の段の最後に移ります。</li>
   <li>本棚の右上の「…」から、本棚や段の追加、画像で保存、共有リンク、まとめて選ぶなどができます。データと使い方は右上の ⚙ にあります。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>新刊チェック</h3><ul>
@@ -826,13 +832,13 @@ $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</butt
 /* ---- 画面切替 ---- */
 function renderAll(){renderShelf();renderList();renderNews();renderBadge()}
 function show(v){$('#caseMore').hidden=v!=='shelf';$('#findBtn').setAttribute('aria-pressed',v==='list');for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
-  for(const s of ['shelf','list','news'])$('#v-'+s).hidden=s!==v;if(location.hash!=='#'+v&&!location.hash.startsWith('#view='))history.replaceState(null,'','#'+v);
+  for(const s of ['shelf','read','list','news'])$('#v-'+s).hidden=s!==v;if(location.hash!=='#'+v&&!location.hash.startsWith('#view='))history.replaceState(null,'','#'+v);
   if(v==='news'){if(newsStale())checkNews();S.newsSeen=(S.news?.items||[]).map(x=>x.isbn);save();setTimeout(renderBadge,1500)}}
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v31';let updAt=0;
+const APP_V='hondana-v32';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
@@ -851,7 +857,7 @@ if(!S.mig2){const nk=k=>k.replace(/[\s　・.,:：!！?？『』「」()（）\-
     st[k]={c,t};for(const b of L){delete b.color;delete b.tcolor}}
   S.mig2=true;save()}
 openViewer();
-renderAll();show(['shelf','list','news'].includes(location.hash.slice(1))?location.hash.slice(1):'shelf');
+renderAll();show(['shelf','read','list','news'].includes(location.hash.slice(1))?location.hash.slice(1):'shelf');
 }
 </script>
 </body>
