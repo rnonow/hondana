@@ -110,6 +110,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
 #seg{position:sticky;bottom:12px;z-index:29;box-shadow:0 6px 20px #0002}#v-news{display:flex;flex-direction:column}#v-news[hidden]{display:none}#seg{order:9;margin:16px 0 0}
+.filters.ctr{flex-direction:column;align-items:center;gap:6px;text-align:center}.filters.ctr .pri{min-width:180px}
 .seg{display:flex;gap:4px;background:var(--line);border-radius:12px;padding:4px;margin:0 0 14px}.seg button{flex:1;border:0;background:none;border-radius:9px;min-height:40px;font-weight:700}
 .seg button[aria-pressed=true]{background:var(--panel);box-shadow:0 1px 4px #0002}
 .rel .wish{white-space:nowrap}
@@ -230,13 +231,13 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <div class="seg" id="seg"><button data-p="new" aria-pressed="true">新刊</button><button data-p="reco" aria-pressed="false">おすすめ</button><button data-p="rank" aria-pressed="false">ランキング</button></div>
     <div id="pReco" hidden>
       <p class="note">持っている本の著者の、まだ持っていない本です（国立国会図書館サーチ）。3日に1回、自動で探し直します。</p>
-      <div class="filters" style="align-items:center"><button class="pri" id="rcheck">探し直す</button><span class="note" id="rlast" style="margin:0"></span></div>
+      <div class="filters ctr"><button class="pri" id="rcheck">探し直す</button><span class="note" id="rlast" style="margin:0"></span></div>
       <p class="msg" id="rmsg"></p><div id="reco"></div></div>
     <div id="pRank" hidden><div class="seg" id="rgen" style="margin-bottom:10px"></div><p class="msg" id="rankMsg"></p><div id="rank"></div><div id="rankSet"></div></div>
     <div id="pNew">
     <h3>新刊チェック</h3>
     <p class="note">本棚にある本のシリーズと著者から、最近90日に出た本と発売予定の本を自動で探します（国立国会図書館サーチ）。アプリを開いた時に半日に1回確認します。</p>
-    <div class="filters" style="align-items:center"><button class="pri" id="fcheck">今すぐ確認</button><span class="note" id="nlast" style="margin:0"></span></div>
+    <div class="filters ctr"><button class="pri" id="fcheck">今すぐ確認</button><span class="note" id="nlast" style="margin:0"></span></div>
     <p class="msg" id="nmsg"></p>
     <div id="news"></div>
     <details id="nset" style="margin-top:18px"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">▸ 追いかける対象の設定</summary>
@@ -921,7 +922,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v37';let updAt=0;
+const APP_V='hondana-v38';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
