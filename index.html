@@ -171,7 +171,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 
   <section id="v-news" class="sec" hidden>
     <h3>フォロー中の著者・シリーズ</h3>
-    <p class="note">登録したキーワードで Google Books を新しい順に検索し、最近90日以内と発売予定の本を表示します。日本の新刊はデータが遅れることがあります。</p>
+    <p class="note">登録したキーワードで国立国会図書館サーチを検索し、最近90日以内に出た本と発売予定の本を表示します。</p>
     <div class="follow" id="follows"></div>
     <div class="filters">
       <input id="fq" placeholder="著者名やシリーズ名（例：ヨシタケシンスケ）" aria-label="フォローするキーワード">
@@ -341,14 +341,23 @@ async function lookup(isbn){
     if(s)return {title:[s.title,s.volume].filter(Boolean).join(' '),author:(s.author||'').replace(/／著|\/著|著$/g,'').replace(/[,／]/g,'・'),publisher:s.publisher||'',pubdate:fmtDate(s.pubdate),cover:s.cover||'',src:'openBD'}}catch(e){}
   try{const r=await fetch('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn);const j=await r.json();const v=j.items?.[0]?.volumeInfo;
     if(v)return {title:[v.title,v.subtitle].filter(Boolean).join(' '),author:(v.authors||[]).join('・'),publisher:v.publisher||'',pubdate:v.publishedDate||'',cover:(v.imageLinks?.thumbnail||'').replace('http:','https:'),src:'Google Books'}}catch(e){}
+  try{const r=await ndl('isbn='+isbn+'&cnt=5');const n=r.find(x=>x.isbn===isbn)||r[0];if(n)return {...n,isbn,src:'国立国会図書館サーチ'}}catch(e){}
   return null}
+/* 国立国会図書館サーチ OpenSearch（新刊・発売予定も含む） */
+const ndlDate=d=>{d=String(d||'').trim();let m=d.match(/^(\d{4})[-.年](\d{1,2})(?:[-.月](\d{1,2}))?/);if(m)return [m[1],m[2].padStart(2,'0'),m[3]?.padStart(2,'0')].filter(Boolean).join('-');return d.slice(0,4)};
+async function ndl(qs){const r=await fetch('https://ndlsearch.ndl.go.jp/api/opensearch?'+qs);if(!r.ok)throw 0;
+  const d=new DOMParser().parseFromString(await r.text(),'text/xml');const g=(i,t)=>i.getElementsByTagName(t)[0]?.textContent?.trim()||'';
+  return [...d.getElementsByTagName('item')].map(i=>{const ids=[...i.getElementsByTagName('dc:identifier')];
+    const isbn=normIsbn((ids.find(e=>/ISBN/.test(e.getAttribute('xsi:type')||''))||{}).textContent);
+    return {isbn,title:[g(i,'dc:title')||g(i,'title'),g(i,'dcndl:volume')].filter(Boolean).join(' '),author:[...i.getElementsByTagName('dc:creator')].map(e=>e.textContent.replace(/[\s　]*(著|作|文|絵|訳)$/,'').replace(/\s+/g,'')).filter((v,k,a)=>a.indexOf(v)===k).join('・'),
+      publisher:g(i,'dc:publisher'),pubdate:ndlDate(g(i,'dcterms:issued')),cover:''}})}
 const fmtDate=d=>{d=String(d||'');return d.length===8?`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`:d.length===6?`${d.slice(0,4)}-${d.slice(4)}`:d};
 function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...pre};
   openPanel(`<button class="x" data-close>閉じる</button><h2>本を追加</h2>
    <button class="pri" id="scanBtn" style="width:100%;min-height:52px">カメラでバーコードを読み取る</button>
    <div class="scan" id="scanBox" hidden></div>
    <div class="fld" style="margin-top:10px"><label>またはISBN（10桁/13桁、ハイフン可）を入力</label><div style="display:flex;gap:8px"><input id="isbn" inputmode="numeric" placeholder="978-4-..." value="${esc(b.isbn)}"><button id="look">検索</button></div></div>
-   <p class="msg" id="lmsg">openBD → Google Books の順に探します。見つからなければ下に手入力してください。</p>
+   <p class="msg" id="lmsg">openBD → Google Books → 国立国会図書館サーチの順に探します。見つからなければ下に手入力してください。</p>
    <div id="fwrap">${form(b)}</div>
    <div class="fld"><label>置き場所</label><select id="where"><option value="tray">未配置</option>${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
    <div class="btns"><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
@@ -409,12 +418,8 @@ $('#fcheck').onclick=async()=>{const m=$('#nmsg');m.className='msg';if(!S.follow
   const since=new Date(Date.now()-90*864e5).toISOString().slice(0,10);const owned=new Set(Object.values(S.books).map(b=>b.isbn));
   const seen=new Set();const out=[];let fail=0;
   for(const f of S.follows){
-    try{const q=(f.type==='author'?'inauthor:':'intitle:')+`"${f.q}"`;
-      const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&orderBy=newest&maxResults=20&printType=books&langRestrict=ja`);
-      if(!r.ok)throw 0;const j=await r.json();
-      for(const it of j.items||[]){const v=it.volumeInfo;const isbn=(v.industryIdentifiers||[]).find(x=>x.type==='ISBN_13')?.identifier||'';
-        const d=v.publishedDate||'';if(d<since||seen.has(isbn||it.id))continue;seen.add(isbn||it.id);
-        out.push({f:f.q,isbn,title:[v.title,v.subtitle].filter(Boolean).join(' '),author:(v.authors||[]).join('・'),publisher:v.publisher||'',pubdate:d,cover:(v.imageLinks?.thumbnail||'').replace('http:','https:')})}
+    try{const items=await ndl(`${f.type==='author'?'creator':'title'}=${encodeURIComponent(f.q)}&from=${since.slice(0,7)}&cnt=80`);
+      for(const n of items){if(!n.isbn||n.pubdate<since.slice(0,7)||seen.has(n.isbn))continue;seen.add(n.isbn);out.push({f:f.q,...n})}
     }catch(e){fail++}}
   out.sort((a,b)=>b.pubdate.localeCompare(a.pubdate));const today=new Date().toISOString().slice(0,10);
   m.textContent=fail===S.follows.length?'新刊情報に接続できませんでした（ネット接続か、この環境で外部APIが使えない可能性があります）':`${out.length}件見つかりました（${since}以降）`;
