@@ -1,5 +1,5 @@
 // アプリ本体をキャッシュしてオフラインでも開けるようにする（本のデータは端末の localStorage）
-const V = 'hondana-v46';
+const V = 'hondana-v47';
 const IMG = 'hondana-img'; // 表紙画像（更新のたびに取り直さないよう端末に保存）
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-180.png', 'lib/zxing-reader.js', 'lib/zxing_reader.wasm'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL))); self.skipWaiting(); });

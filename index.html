@@ -95,7 +95,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .x{float:right;min-height:36px;padding:4px 12px}
 .prev{display:flex;gap:14px;align-items:flex-end;margin:6px 0 14px}
-.prev .face{--fh:150px;--k:1;margin:0}
+.prev .face{--fh:150px;--k:1;margin:0;flex:none}
+.pinfo{display:flex;flex-direction:column;gap:4px;align-items:flex-start;align-self:stretch;justify-content:flex-start;min-width:0;line-height:1.45}.pinfo b{font-size:17px}.pinfo span{font-size:14px}.pinfo .note{margin:0}.pinfo button{margin-top:auto}
 .msg{font-size:13px;color:var(--mute);min-height:1.5em}
 .msg.err{color:var(--acc)}
 /* 一覧・新刊 */
@@ -608,7 +609,7 @@ function confirmP(t,cb){openPanel(`<button class="x" data-close>閉じる</butto
 
 /* ---- 本の詳細・編集 ---- */
 function form(b){return `
-  <div class="prev">${faceHTML(b,150)}${b.cover||b.spine?'<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><button id="imgClr">撮った写真を外す</button></div>':''}</div>
+  <div class="prev">${faceHTML(b,150)}<div class="pinfo">${b.title?`<b>${esc(b.title)}</b>${b.author?`<span>${esc(b.author)}</span>`:''}${b.publisher?`<span>${esc(b.publisher)}</span>`:''}${b.pubdate?`<span>${esc(fmtDate(b.pubdate))}</span>`:''}${b.isbn?`<span class="note">ISBN ${esc(b.isbn)}</span>`:''}`:'<span class="note">バーコードを読み取るか、キーワードで探すと、ここに本の情報が出ます</span>'}${b.cover||b.spine?'<button id="imgClr">撮った写真を外す</button>':''}</div></div>
   <div class="fld"><label>タイトル</label><input id="f-title" value="${esc(b.title)}"></div>
   <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
@@ -965,7 +966,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v46';let updAt=0;
+const APP_V='hondana-v47';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
