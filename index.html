@@ -185,10 +185,6 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
     <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。右上の「＋ 本を追加」から、バーコードやキーワードで登録できます。</p>
     <div class="case" id="case"></div>
-    <div class="tray">
-      <h3>未配置の本</h3>
-      <div class="row" id="tray" data-shelf="tray"></div>
-    </div>
     <div class="tray lockshelf"><h3>読書中 <span class="note" id="readN"></span></h3><div id="readGather"></div>
       <div class="row locked" id="readRow" data-shelf="reading"></div></div>
     <div class="tray lockshelf"><h3>積読 <span class="note" id="tsunN"></span></h3><div id="tsunGather"></div>
@@ -293,22 +289,23 @@ function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
 
 /* ---- 本棚 ---- */
 function renderSampleBar(){const L=S.sampleKeep?[]:sampleBooks();$('#sampleBar').hidden=!L.length;$('#sampleTxt').textContent=`最初から入っていたサンプルの本が${L.length}冊残っています。`;$('#emptyNote').hidden=Object.keys(S.books).length>0}
-function renderShelf(){renderSampleBar();renderSerDrag();
+/* 未配置はなくした：置き場所のない本（以前の未配置の本・読了になった本）は、表示中の本棚の一番下の段の最後に入れる */
+const bottomList=()=>{const c=curCase();return c.shelves[c.shelves.length-1].books};
+function sweepTray(){const t=(S.tray||[]).filter(id=>S.books[id]&&!S.cases.some(c=>c.shelves.some(x=>x.books.includes(id))));S.tray=[];if(t.length){bottomList().push(...t);save()}return t.length}
+function renderShelf(){sweepTray();renderSampleBar();renderSerDrag();
   $('#caseSel').innerHTML=S.cases.map(c=>`<option value="${c.id}" ${c.id===S.cur?'selected':''}>${esc(c.name)}</option>`).join('');
   const c=curCase();
   $('#case').innerHTML=c.shelves.map(s=>`<div class="shelf"><button class="sname" data-sid="${s.id}" title="段の名前を変更・削除">${esc(s.name)}</button>
     <div class="row" data-shelf="${s.id}">${s.books.map(bookHTML).join('')||'<span class="empty">ここに本をドラッグ</span>'}</div><div class="board"></div></div>`).join('');
-  S.tray=S.tray.filter(id=>S.books[id]);
-  $('#tray').innerHTML=S.tray.map(bookHTML).join('')||'<span class="empty">ここに置いた本は本棚に並びません</span>';
   for(const [k,st,row,nEl,gEl,lab,emp] of [['reading','reading','#readRow','#readN','#readGather','読書中','「読書中」にした本がここに入ります'],['tsun','unread','#tsunRow','#tsunN','#tsunGather','積読','「積読」にした本が登録順にここに入ります']]){
-    const L=listOf(k);for(const id of [...L]){const b=S.books[id];if(!b||b.status!==st){L.splice(L.indexOf(id),1);if(b&&!placeOf(id))S.tray.push(id)}}L.sort(byAdded);
+    const L=listOf(k);for(const id of [...L]){const b=S.books[id];if(!b||b.status!==st){L.splice(L.indexOf(id),1);if(b&&!placeOf(id))bottomList().push(id)}}L.sort(byAdded);
     $(row).innerHTML=L.map(bookHTML).join('')||`<span class="empty">${emp}</span>`;$(nEl).textContent=L.length?`${L.length}冊`:'';
     const out=Object.values(S.books).filter(b=>b.status===st&&!L.includes(b.id));
     $(gEl).innerHTML=out.length?`<button data-gather="${k}">ほかの場所にある${lab}の本（${out.length}冊）もここに集める</button>`:''}
 }
 document.addEventListener('click',e=>{const g=e.target.closest('[data-gather]');if(!g)return;const k=g.dataset.gather,st=k==='tsun'?'unread':'reading';
   const out=Object.values(S.books).filter(b=>b.status===st&&!listOf(k).includes(b.id));
-  confirmP(`本棚や未配置にある「${ST[st]}」の本${out.length}冊を、${ST[st]}の棚に移します。読了にすると「未配置」に戻ります。`,()=>{for(const b of out)placeByStatus(b);save();renderShelf();toast(`${out.length}冊を移しました`)})});
+  confirmP(`本棚にある「${ST[st]}」の本${out.length}冊を、${ST[st]}の棚に移します。読了にすると本棚の一番下の段に戻ります。`,()=>{for(const b of out)placeByStatus(b);save();renderShelf();toast(`${out.length}冊を移しました`)})});
 const listOf=sid=>sid==='tray'?S.tray:sid==='tsun'?(S.tsun??=[]):sid==='reading'?(S.reading??=[]):S.cases.flatMap(c=>c.shelves).find(s=>s.id===sid)?.books;
 function removeEverywhere(id){S.tray=S.tray.filter(x=>x!==id);S.tsun=(S.tsun||[]).filter(x=>x!==id);S.reading=(S.reading||[]).filter(x=>x!==id);for(const c of S.cases)for(const s of c.shelves)s.books=s.books.filter(x=>x!==id)}
 /* 積読・読書中の棚：状態で自動的に置き場所が決まり、読了になるまでドラッグでは動かせない */
@@ -317,7 +314,7 @@ const isLocked=id=>(S.tsun||[]).includes(id)||(S.reading||[]).includes(id);
 const byAdded=(a,b)=>(S.books[a]?.added||0)-(S.books[b]?.added||0);
 function placeByStatus(b){const k=LOCK[b.status];
   if(k){if(listOf(k).includes(b.id))return;removeEverywhere(b.id);listOf(k).push(b.id);listOf(k).sort(byAdded);return}
-  if(isLocked(b.id)){removeEverywhere(b.id);S.tray.push(b.id)}}
+  if(isLocked(b.id)){removeEverywhere(b.id);bottomList().push(b.id)}}
 function placeOf(id){if(S.tray.includes(id))return '未配置';if((S.tsun||[]).includes(id))return '積読の棚';if((S.reading||[]).includes(id))return '読書中の棚';for(const c of S.cases)for(const s of c.shelves)if(s.books.includes(id))return `${c.name} / ${s.name}`;return ''}
 
 /* まとめて選ぶ */
@@ -340,12 +337,12 @@ $('#selColor').onclick=()=>{if(!SEL.size)return toast('先に本を選んでく�
   $('#mOk').onclick=()=>{for(const id of SEL){S.books[id].color=$('#mc').value;S.books[id].tcolor=$('#mt').value}save();renderShelf();renderSel();closePanel();toast('色を変えました')};
   $('#mReset').onclick=()=>{for(const id of SEL){delete S.books[id].color;delete S.books[id].tcolor;if(S.seriesStyle)delete S.seriesStyle[skey(S.books[id])]}save();renderShelf();renderSel();closePanel();toast('自動の色に戻しました')}};
 $('#selStatus').onclick=()=>{if(!SEL.size)return toast('先に本を選んでください');
-  openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の状態を変える</h2><p class="msg">積読・読書中にするとそれぞれの棚へ、読了にすると積読・読書中の棚から「未配置」へ移ります。</p><div class="btns">${Object.entries(ST).map(([k,v])=>`<button data-st="${k}">${v}</button>`).join('')}</div>`);
+  openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の状態を変える</h2><p class="msg">積読・読書中にするとそれぞれの棚へ、読了にすると積読・読書中の棚から本棚の一番下の段へ移ります。</p><div class="btns">${Object.entries(ST).map(([k,v])=>`<button data-st="${k}">${v}</button>`).join('')}</div>`);
   panel.querySelector('.btns').onclick=e=>{const k=e.target.closest('[data-st]')?.dataset.st;if(!k)return;for(const id of SEL){const b=S.books[id];if(!b)continue;b.status=k;placeByStatus(b)}SEL.clear();save();renderShelf();renderSel();closePanel();toast(`${ST[k]}にしました`)}};
 $('#selSeries').onclick=()=>{if(!SEL.size)return toast('先にシリーズの本を1冊タップしてください');const ser=new Set([...SEL].map(id=>seriesOf(S.books[id])));
   for(const b of Object.values(S.books))if(ser.has(seriesOf(b))&&placeOf(b.id))SEL.add(b.id);renderSel();toast(`${SEL.size}冊を選びました`)};
 $('#selSort').onclick=()=>{if(SEL.size<2)return toast('2冊以上選んでください');
-  const slots=[...S.cases.flatMap(c=>c.shelves.map(s=>s.id)),'tray'];const sid=slots.find(x=>listOf(x).some(id=>SEL.has(id)));const at=listOf(sid).findIndex(id=>SEL.has(id));
+  const slots=[...S.cases.flatMap(c=>c.shelves.map(s=>s.id)),'tsun','reading'];const sid=slots.find(x=>listOf(x).some(id=>SEL.has(id)));const at=listOf(sid).findIndex(id=>SEL.has(id));
   const ids=[...SEL].sort(byVol);for(const id of ids)removeEverywhere(id);listOf(sid).splice(at,0,...ids);save();renderShelf();toast('巻数順に並べました')};
 /* ---- 本棚を画像にする（3段ずつ1枚） ---- */
 const loadImg=(src,cors)=>new Promise(ok=>{if(!src)return ok(null);const i=new Image();if(cors)i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=src;setTimeout(()=>ok(null),6000)});
@@ -451,7 +448,7 @@ function closeViewer(){history.replaceState(null,'',location.pathname+location.s
 addEventListener('hashchange',openViewer);
 /* 同じ段にある同じシリーズ（巻のある本）をまとめて返す。1冊だけなら null */
 function sameShelfSeries(id){const b=S.books[id];if(!b||!volOf(b))return null;const k=skey(b);
-  const sid=[...S.cases.flatMap(c=>c.shelves.map(x=>x.id)),'tray'].find(x=>listOf(x).includes(id));if(!sid)return null;
+  const sid=[...S.cases.flatMap(c=>c.shelves.map(x=>x.id)),'tsun','reading'].find(x=>listOf(x).includes(id));if(!sid)return null;
   const L=listOf(sid).filter(x=>S.books[x]&&skey(S.books[x])===k);return L.length>1?L:null}
 /* ドラッグ：マウスはそのまま、タッチは長押し（約0.4秒）で持ち上げる */
 let D=null;
@@ -504,15 +501,15 @@ $('#caseNew').onclick=()=>ask('新しい本棚の名前','寝室の本棚',v=>{c
 $('#caseRen').onclick=()=>ask('本棚の名前',curCase().name,v=>{curCase().name=v;save();renderShelf()});
 $('#shelfNew').onclick=()=>{const c=curCase();c.shelves.push({id:uid(),name:(c.shelves.length+1)+'段目',books:[]});save();renderShelf()};
 $('#caseDel').onclick=()=>{if(S.cases.length<2)return toast('本棚は最低1つ必要です');const c=curCase();
-  confirmP(`「${c.name}」を削除します。並んでいた本は「未配置」に移ります。`,()=>{for(const s of c.shelves)S.tray.push(...s.books);S.cases=S.cases.filter(x=>x!==c);S.cur=S.cases[0].id;save();renderShelf()})};
+  confirmP(`「${c.name}」を削除します。並んでいた本は、ほかの本棚の一番下の段に移ります。`,()=>{const mv=c.shelves.flatMap(s=>s.books);S.cases=S.cases.filter(x=>x!==c);S.cur=S.cases[0].id;bottomList().push(...mv);save();renderShelf()})};
 $('#case').addEventListener('click',e=>{const b=e.target.closest('.sname');if(!b)return;const c=curCase();const s=c.shelves.find(x=>x.id===b.dataset.sid);
   openPanel(`<button class="x" data-close>閉じる</button><h2>段の設定</h2><div class="fld"><label>段の名前</label><input id="sn" value="${esc(s.name)}"></div>
   <div class="btns"><button class="pri" id="snOk">保存</button><button id="snDel">この段を削除</button></div>
-  <div class="btns"><button id="snTidy">シリーズを巻数順に整える</button></div><p class="msg">同じシリーズの本を、最初の1冊の位置に巻数順でまとめます。</p><p class="msg">削除すると、この段の本は「未配置」に移ります。</p>`);
+  <div class="btns"><button id="snTidy">シリーズを巻数順に整える</button></div><p class="msg">同じシリーズの本を、最初の1冊の位置に巻数順でまとめます。</p><p class="msg">削除すると、この段の本は一番下の段（この段が一番下なら、1つ上の段）の最後に移ります。</p>`);
   $('#snOk').onclick=()=>{s.name=$('#sn').value.trim()||s.name;save();renderShelf();closePanel()};
   $('#snTidy').onclick=()=>{const out=[],done=new Set();for(const id of s.books){if(done.has(id))continue;const ser=seriesOf(S.books[id]);const grp=s.books.filter(x=>!done.has(x)&&seriesOf(S.books[x])===ser).sort(byVol);grp.forEach(x=>done.add(x));out.push(...grp)}
     s.books=out;save();renderShelf();closePanel();toast('巻数順に整えました')};
-  $('#snDel').onclick=()=>{if(c.shelves.length<2)return toast('段は最低1つ必要です');S.tray.push(...s.books);c.shelves=c.shelves.filter(x=>x!==s);save();renderShelf();closePanel()};
+  $('#snDel').onclick=()=>{if(c.shelves.length<2)return toast('段は最低1つ必要です');c.shelves=c.shelves.filter(x=>x!==s);c.shelves[c.shelves.length-1].books.push(...s.books);save();renderShelf();closePanel()};
 });
 
 /* ---- パネル共通 ---- */
@@ -591,7 +588,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
    <p class="msg" id="lmsg">openBD → Google Books → 国立国会図書館サーチの順に探します。見つからなければ下に手入力してください。</p>
    <div id="serBox"></div>
    <div id="fwrap">${form(b)}</div>
-   <div class="fld"><label>置き場所</label><select id="where"><option value="tray">未配置</option>${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
+   <div class="fld"><label>置き場所</label><select id="where">${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
    <div class="btns"><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
   bindImg(b);
   const go=async()=>{const isbn=normIsbn($('#isbn').value);const m=$('#lmsg');m.className='msg';
@@ -625,7 +622,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
     S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(extra.length?`「${seriesOf(b)}」${all.length}冊を追加しました`:`「${b.title}」を追加しました`);return true};
   $('#aSave').onclick=save1;
   $('#aNext').onclick=()=>{if(save1())setTimeout(()=>addBook({autoscan:true}),300)};
-  if(S.lastWhere&&listOf(S.lastWhere))$('#where').value=S.lastWhere;
+  $('#where').value=S.lastWhere&&curCase().shelves.some(x=>x.id===S.lastWhere)?S.lastWhere:curCase().shelves.at(-1).id;
 }
 /* シリーズのほかの巻：国立国会図書館サーチで同じシリーズ名・同じ出版社の巻を集める */
 let SER={list:[],on:new Set()};
@@ -694,10 +691,10 @@ function bulkAdd(){const Q=[];const owned=new Set(Object.values(S.books).map(b=>
    <button class="pri" id="scanBtn" style="width:100%;min-height:48px">読み取りをやめる</button>
    <div class="scan" id="scanBox" hidden></div>
    <div class="fld" style="margin-top:12px"><label>状態</label><select id="bst">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${k==='done'?'selected':''}>${v}</option>`).join('')}</select><p class="note" style="margin:4px 0 0">積読・読書中にすると、置き場所ではなくそれぞれの棚に入ります</p></div>
-   <div class="fld"><label>置き場所</label><select id="where"><option value="tray">未配置</option>${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
+   <div class="fld"><label>置き場所</label><select id="where">${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
    <button class="pri" id="bulkSave" style="width:100%;min-height:48px" disabled>0冊をまとめて登録</button>
    <div id="bq" style="margin-top:8px"></div>`);
-  if(S.lastWhere&&listOf(S.lastWhere))$('#where').value=S.lastWhere;
+  $('#where').value=S.lastWhere&&curCase().shelves.some(x=>x.id===S.lastWhere)?S.lastWhere:curCase().shelves.at(-1).id;
   const draw=()=>{const ok=Q.filter(q=>q.b).length;const bs=$('#bulkSave');if(!bs)return;bs.textContent=`${ok}冊をまとめて登録`;bs.disabled=!ok;
     $('#bq').innerHTML=Q.map((q,i)=>`<div class="rel">${q.b?faceHTML(q.b,84):'<div></div>'}<div><b>${esc(q.b?.title||q.isbn)}</b><div class="d">${q.b?esc(q.b.author)+'・'+esc(q.b.publisher):q.err?esc(q.err):'検索中…'}</div></div><button data-rm="${i}" aria-label="一覧から外す">外す</button></div>`).reverse().join('')};
   $('#bq').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){Q.splice(+b.dataset.rm,1);draw()}};
@@ -782,7 +779,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>同じ段にある同じシリーズは、まとめて巻数順に動きます。1冊だけ動かしたいときは「シリーズまとめて動かす」をオフにします。</li>
   <li>「まとめて選ぶ」で本をタップして選ぶと、まとめて動かしたり、巻数順に並べたり、色を変えたりできます。</li>
   <li>本をタップすると詳細が開きます。「表紙を見せて飾る」にすると表紙が見える置き方になります。背表紙の色もここで変えられます（同じシリーズにまとめて使えます）。</li>
-  <li>「読書中」「積読」にした本は、未配置の下にあるそれぞれの棚へ自動で入ります（積読は登録順）。読了にすると「未配置」に移ります。逆に、本をドラッグで積読・読書中の棚へ入れるとその状態に、そこから本棚や未配置へ出すと「読了」になります。</li>
+  <li>「読書中」「積読」にした本は、本棚の下にあるそれぞれの棚へ自動で入ります（積読は登録順）。読了にすると本棚の一番下の段の最後に移ります。逆に、本をドラッグで積読・読書中の棚へ入れるとその状態に、そこから本棚へ出すと「読了」になります。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>新刊チェック</h3><ul>
   <li>本棚にある本のシリーズと著者から、新しく出た本と発売予定の本を自動で探します。</li>
@@ -814,7 +811,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v27';let updAt=0;
+const APP_V='hondana-v28';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
