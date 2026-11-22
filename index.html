@@ -210,6 +210,10 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 .btns.col{flex-direction:column;align-items:stretch}.btns.col button{padding:14px;font-size:1rem;text-align:right}.btns.col button:disabled{opacity:.45}
+#tabs{touch-action:manipulation}#tabs button{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#caseFlash{position:fixed;left:50%;top:42%;translate:-50% -50%;z-index:60;background:#000b;color:#fff;padding:12px 22px;border-radius:12px;font-size:18px;font-weight:700;pointer-events:none;opacity:0;white-space:nowrap}
+#caseFlash.on{animation:cflash 1.3s ease forwards}@keyframes cflash{0%{opacity:0;scale:.9}15%{opacity:1;scale:1}70%{opacity:1}100%{opacity:0}}
+.btns.col button[aria-pressed=true]{font-weight:700}
 </style>
 </head>
 <body>
@@ -1097,11 +1101,25 @@ document.addEventListener('touchstart',e=>{const t=e.touches[0];TX=t.clientX;TY=
 document.addEventListener('touchmove',e=>{if(D?.on||e.touches.length>1)return;if(e.target.closest('.panel,.menu,#viewer:not([hidden]),.scan'))return;const sc=e.target.closest('.iscroll');if(sc&&sc.scrollHeight>sc.clientHeight+1)return;
   const t=e.touches[0];if(Math.abs(t.clientY-TY)<=Math.abs(t.clientX-TX))return;
   const el=document.scrollingElement;const nl=!$('#v-list').hidden||!$('#v-read').hidden||!$('#v-news').hidden&&$('#v-news .iscroll')&&!$('#nset').open&&!$('#rankSet details[open]');if(!$('#v-shelf').hidden||nl||el.scrollHeight<=innerHeight+2)e.preventDefault()},{passive:false});
-$('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
+/* 下の「本棚」タブ：2回タップで次の本棚へ、長押しで本棚の一覧から選ぶ */
+function flashCase(){const c=curCase();let f=$('#caseFlash');if(!f){f=document.createElement('div');f.id='caseFlash';document.body.append(f)}
+  f.textContent=c.name;f.classList.remove('on');void f.offsetWidth;f.classList.add('on')}
+function goCase(id){if(VIEW)$('#viewOff').click();S.cur=id;PAGE=0;save();show('shelf');renderShelf();flashCase()}
+function pickCase(){openPanel(`<button class="x" data-close>閉じる</button><h2>本棚を選ぶ</h2><div class="btns col" id="pcList">${S.cases.map(c=>`<button data-c="${c.id}"${c.id===S.cur?' aria-pressed="true"':''}>${esc(c.name)}${c.id===S.cur?'（表示中）':''}</button>`).join('')}</div>`);
+  $('#pcList').onclick=e=>{const k=e.target.closest('[data-c]')?.dataset.c;if(!k)return;closePanel();goCase(k)}}
+let TAPT=0,LPT=null,LPDONE=false;const shelfTab=document.querySelector('#tabs [data-v=shelf]');
+shelfTab.addEventListener('pointerdown',()=>{LPDONE=false;clearTimeout(LPT);LPT=setTimeout(()=>{LPDONE=true;TAPT=0;navigator.vibrate?.(15);pickCase()},500)});
+for(const ev of ['pointerup','pointerleave','pointercancel'])shelfTab.addEventListener(ev,()=>clearTimeout(LPT));
+shelfTab.addEventListener('contextmenu',e=>e.preventDefault());
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+  if(b===shelfTab){if(LPDONE){LPDONE=false;return}const now=Date.now(),was=!$('#v-shelf').hidden;
+    if(was&&now-TAPT<400&&S.cases.length>1){TAPT=0;const i=S.cases.findIndex(c=>c.id===S.cur);return goCase(S.cases[(i+1)%S.cases.length].id)}
+    TAPT=was?now:0}
+  show(b.dataset.v)};
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v72';let updAt=0;
+const APP_V='hondana-v73';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
