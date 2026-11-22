@@ -119,6 +119,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .case,.tray .row,.face,.spine,.ghost,.scan{forced-color-adjust:none}
 .scan{position:relative;background:#000;border-radius:10px;overflow:hidden;min-height:220px;margin:8px 0}
 .scan video{width:100%;max-height:42vh;object-fit:cover;display:block}
+.scan .flash{position:absolute;left:8%;right:8%;top:38%;z-index:3;text-align:center;font-weight:700;font-size:18px;color:#fff;background:#2f7d5bee;border-radius:12px;padding:10px 12px;opacity:0;transform:scale(.9);transition:opacity .15s,transform .15s;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scan .flash.on{opacity:1;transform:none}.scan .flash.warn{background:#b4532aee}
 .scan .guide{position:absolute;left:5%;right:5%;top:25%;bottom:25%;border:3px solid #fff;border-radius:10px;box-shadow:0 0 0 999px #0006}
 .scan .scanhint{position:absolute;left:0;right:0;bottom:0;margin:0;padding:6px 10px;font-size:13px;color:#fff;background:#0008;text-align:center}
 @media(max-width:600px){
@@ -425,7 +427,7 @@ function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',
     if(r){Object.assign(b,r);delete b.src;if(!dup)m.textContent=`${r.src} で見つかりました。内容を確認して追加してください。`}
     else{m.textContent='見つかりませんでした（またはこの環境では外部APIに接続できません）。手入力してください。';m.classList.add('err')}
     $('#fwrap').innerHTML=form(b);bindImg(b)};
-  $('#scanBtn').onclick=()=>{$('#lmsg').className='msg';$('#lmsg').textContent='本の裏表紙の「978」で始まるバーコードを枠に入れてください';scan(code=>{$('#isbn').value=code;go()})};
+  $('#scanBtn').onclick=()=>{primeSound();$('#lmsg').className='msg';$('#lmsg').textContent='本の裏表紙の「978」で始まるバーコードを枠に入れてください';scan(code=>{$('#isbn').value=code;go()})};
   $('#photoBtn').onclick=()=>{const i=$('#photoIn');i.value='';i.onchange=async()=>{const f=i.files[0];if(!f)return;const m=$('#lmsg');m.className='msg';m.textContent='写真から読み取り中…';
     const code=await scanPhoto(f);if(code){$('#isbn').value=code;go()}else{m.textContent='写真から978で始まるバーコードが見つかりませんでした。バーコードを大きく、まっすぐ、ピントを合わせて撮ってください。';m.classList.add('err')}};i.click()};
   if(pre?.autoscan)$('#scanBtn').click();
@@ -438,7 +440,7 @@ function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',
     box.innerHTML=list.map((n,i)=>`<div class="rel">${faceHTML(n,84)}<div><b>${esc(n.title)}</b><div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div></div><button data-k="${i}">選ぶ</button></div>`).join('');
     box.onclick=e=>{const btn=e.target.closest('[data-k]');if(!btn)return;const n=list[+btn.dataset.k];box.innerHTML='';
       Object.assign(b,n);$('#isbn').value=n.isbn;$('#fwrap').innerHTML=form(b);bindImg(b);go()}};
-  $('#bulkBtn').onclick=()=>bulkAdd();
+  $('#bulkBtn').onclick=()=>{primeSound();bulkAdd()};
   $('#kwBtn').onclick=kwgo;$('#kw').onkeydown=e=>{if(e.key==='Enter')kwgo()};
   $('#look').onclick=go;$('#isbn').onkeydown=e=>{if(e.key==='Enter')go()};
   const save1=()=>{readForm(b);if(!b.title){toast('タイトルを入れてください');return false}
@@ -456,7 +458,12 @@ function loadZX(){return zxReady??=new Promise((ok,ng)=>{const sc=document.creat
   sc.onerror=ng;document.head.append(sc)}).catch(e=>{zxReady=null;throw e})}
 const pickIsbn=rs=>{const t=(rs||[]).map(r=>r.text||r.rawValue||'');return {isbn:t.find(v=>ISBN_RE.test(v))||'',other:t.find(v=>/^19[12]\d{10}$/.test(v))||''}};
 async function scanPhoto(f){try{await loadZX();return pickIsbn(await ZXingWASM.readBarcodes(f,ZOPT)).isbn}catch(e){return ''}}
-let CAM=null;
+let CAM=null,AC=null;
+/* 読めた合図：iPhoneは振動できないので、音と画面の表示で知らせる */
+function primeSound(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();AC.resume?.()}catch(e){}}
+function beep(ok=true){navigator.vibrate?.(40);try{if(!AC)return;const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=ok?1320:440;o.connect(g);g.connect(AC.destination);const t=AC.currentTime;g.gain.setValueAtTime(.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.18);o.start(t);o.stop(t+.2)}catch(e){}}
+function flash(text,kind='ok'){const bx=$('#scanBox');if(!bx)return;let f=bx.querySelector('.flash');if(!f){f=document.createElement('div');f.className='flash';bx.append(f)}
+  f.className='flash on '+kind;f.textContent=text;clearTimeout(f._t);f._t=setTimeout(()=>f.classList.remove('on'),1600)}
 function stopScan(){if(!CAM)return;CAM.on=false;clearTimeout(CAM.t);CAM.stream?.getTracks().forEach(t=>t.stop());CAM=null;const bx=$('#scanBox');if(bx){bx.hidden=true;bx.innerHTML=''}const sb=$('#scanBtn');if(sb)sb.textContent='カメラでバーコードを読み取る'}
 async function scan(onCode,keep=false){if(CAM)return stopScan();const box=$('#scanBox'),m=$('#lmsg');
   box.innerHTML='<video playsinline muted autoplay></video><div class="guide"></div><p class="scanhint">バーコードを枠に合わせ、15cmほど離してピントを合わせてください</p>';box.hidden=false;$('#scanBtn').textContent='読み取りをやめる';
@@ -475,7 +482,7 @@ async function scan(onCode,keep=false){if(CAM)return stopScan();const box=$('#sc
         const sx=Math.round(W*fx),sy=Math.round(H*fy),sw=Math.round(W*fw),sh=Math.round(H*fh);
         const k=mode===1?Math.max(1,Math.min(2,1000/sw)):Math.min(1,1600/sw);c.width=Math.round(sw*k);c.height=Math.round(sh*k);ctx.drawImage(v,sx,sy,sw,sh,0,0,c.width,c.height);
         try{const r=pickIsbn(await ZXingWASM.readBarcodesFromImageData(ctx.getImageData(0,0,c.width,c.height),ZOPT));
-          if(r.isbn&&me.on){if(keep){const now=Date.now();if(r.isbn!==me.last||now-me.lastT>2500){me.last=r.isbn;navigator.vibrate?.(40);onCode(r.isbn)}me.lastT=now}else{navigator.vibrate?.(40);stopScan();onCode(r.isbn);return}}
+          if(r.isbn&&me.on){if(keep){const now=Date.now();if(r.isbn!==me.last||now-me.lastT>2500){me.last=r.isbn;onCode(r.isbn)}me.lastT=now}else{beep();stopScan();onCode(r.isbn);return}}
           if(r.other&&!r.isbn&&Date.now()-(me.lastT||0)>3000){m.className='msg';m.textContent='それは価格のバーコードです。上にある「978」で始まるバーコードを写してください'}}catch(e){}}
       me.t=setTimeout(tick,60)};
     tick();
@@ -495,10 +502,11 @@ function bulkAdd(){const Q=[];const owned=new Set(Object.values(S.books).map(b=>
     $('#bq').innerHTML=Q.map((q,i)=>`<div class="rel">${q.b?faceHTML(q.b,84):'<div></div>'}<div><b>${esc(q.b?.title||q.isbn)}</b><div class="d">${q.b?esc(q.b.author)+'・'+esc(q.b.publisher):q.err?esc(q.err):'検索中…'}</div></div><button data-rm="${i}" aria-label="一覧から外す">外す</button></div>`).reverse().join('')};
   $('#bq').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){Q.splice(+b.dataset.rm,1);draw()}};
   const onCode=async isbn=>{const m=$('#lmsg');if(!m)return;
-    if(owned.has(isbn)){m.textContent=`${isbn} はもう本棚にあります`;return}
-    if(Q.some(q=>q.isbn===isbn)){m.textContent='その本は読み取り済みです';return}
-    const q={isbn};Q.push(q);draw();m.textContent=`${Q.length}冊目を読み取りました。次の本をかざしてください`;
-    const r=await lookup(isbn);if(r){delete r.src;q.b={id:uid(),isbn,title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...r}}else q.err='本の情報が見つかりませんでした（外すか、あとで手入力）';draw()};
+    const have=Object.values(S.books).find(b=>b.isbn===isbn);
+    if(have){beep(false);flash(`登録済み：${have.title}`,'warn');m.textContent=`「${have.title}」はもう登録されています`;return}
+    if(Q.some(q=>q.isbn===isbn)){beep(false);flash('この本は読み取り済み','warn');return}
+    const q={isbn};Q.push(q);draw();beep();flash(`${Q.length}冊目 OK`);m.textContent=`${Q.length}冊目を読み取りました。次の本をかざしてください`;
+    const r=await lookup(isbn);if(r)flash(`${Q.indexOf(q)+1}冊目：${r.title}`);if(r){delete r.src;q.b={id:uid(),isbn,title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...r}}else q.err='本の情報が見つかりませんでした（外すか、あとで手入力）';draw()};
   $('#scanBtn').onclick=()=>{if(CAM){stopScan();$('#scanBtn').textContent='読み取りを再開する'}else{scan(onCode,true)}};
   $('#bulkSave').onclick=()=>{const w=$('#where').value;const L=listOf(w);let n=0;for(const q of Q)if(q.b){q.b.added=Date.now()+n;S.books[q.b.id]=q.b;L.push(q.b.id);n++}
     S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(`${n}冊を登録しました`)};
