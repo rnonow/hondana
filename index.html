@@ -93,11 +93,9 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 /* 読書中：椅子に座ってコーヒーを飲みながら本を読む棒人間。本は手に持った表紙 */
 #readRow{padding-top:6px;gap:6px}
 .reader{flex:none;position:relative;width:calc(160px*var(--k));height:calc(168px*var(--k))}
-.reader svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.reader .bk{position:absolute;left:calc(98px*var(--k));top:calc(46px*var(--k));perspective:500px}
-.reader .bk .face{--fh:74px!important;margin:0;transform:rotateY(-32deg);transform-origin:left center;box-shadow:3px 3px 6px #0006}
-.reader .bk::after{content:"";position:absolute;right:38%;top:-8px;width:6px;height:30%;background:#c0392b;z-index:2;clip-path:polygon(0 0,100% 0,100% 100%,50% 86%,0 100%)}
-.reader .bk.dragging::after{display:none}
+.reader svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;transform:scaleX(-1)}
+.reader .bk{position:absolute;left:calc(10px*var(--k));top:calc(40px*var(--k));perspective:500px}
+.reader .bk .face{--fh:74px!important;margin:0;transform:rotateY(32deg);transform-origin:right center;box-shadow:-3px 3px 6px #0006}
 .reader .ln{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .reader .steam path{fill:none;stroke:var(--mute);stroke-width:2;stroke-linecap:round;opacity:0;animation:steam 3s ease-in-out infinite}
 .reader .steam path:nth-child(2){animation-delay:1s}.reader .steam path:nth-child(3){animation-delay:2s}
@@ -376,6 +374,8 @@ const tiSize=t=>{const n=[...String(t||'')].length;return n>26?' style="font-siz
 function pileHTML(id){const b=S.books[id];if(!b)return '';const L=look(b),h=hash(b.id),h2=hash(b.id+'x'),h3=hash('r'+b.id);
   return `<div class="bk pb st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)}" tabindex="0" style="--pw:${70+h%18}%;--px:${h2%25-12}%;--pr:${(h3%41-20)/10}deg"><div class="pspine" style="--c:${L.c};--t:${L.t}"><span>${esc(b.title)}</span></div></div>`}
 const READER=`<svg viewBox="0 0 160 168" aria-hidden="true">
+<path class="ln" style="stroke:var(--wood);stroke-width:4" d="M108 120v46M152 120v46"/>
+<rect x="98" y="113" width="62" height="7" rx="2" fill="var(--woodhi)"/>
 <path class="ln" style="stroke:var(--woodhi);stroke-width:7" d="M38 34v96"/>
 <path class="ln" style="stroke:var(--woodhi);stroke-width:7" d="M38 128h58"/>
 <path class="ln" style="stroke:var(--wood);stroke-width:4" d="M42 132v34M92 132v34"/>
@@ -1119,7 +1119,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v73';let updAt=0;
+const APP_V='hondana-v74';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
