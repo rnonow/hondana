@@ -666,7 +666,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
    <button id="bulkBtn" style="width:100%;margin-top:8px">何冊も続けて読み取る（まとめて登録）</button>
    <div class="scan" id="scanBox" hidden></div>
    <input type="hidden" id="isbn" value="${esc(b.isbn)}">
-   <div class="fld" style="margin-top:10px"><div style="display:flex;gap:8px"><input id="kw" type="search" enterkeyhint="search" placeholder="例：かがみの孤城 辻村"><button id="kwBtn">探す</button></div></div>
+   <div class="fld" style="margin-top:10px"><div style="display:flex;gap:8px"><input id="kw" type="search" enterkeyhint="search" placeholder="例：宇宙兄弟　小山宙哉"><button id="kwBtn">探す</button></div></div>
    <div id="kres"></div>
    <p class="msg" id="lmsg"></p>
    <div id="serBox"></div>
@@ -965,7 +965,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v45';let updAt=0;
+const APP_V='hondana-v46';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
