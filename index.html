@@ -668,7 +668,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
    <input type="hidden" id="isbn" value="${esc(b.isbn)}">
    <div class="fld" style="margin-top:10px"><div style="display:flex;gap:8px"><input id="kw" type="search" enterkeyhint="search" placeholder="例：かがみの孤城 辻村"><button id="kwBtn">探す</button></div></div>
    <div id="kres"></div>
-   <p class="msg" id="lmsg">openBD → Google Books → 国立国会図書館サーチの順に探します。見つからなければ下に手入力してください。</p>
+   <p class="msg" id="lmsg"></p>
    <div id="serBox"></div>
    <div id="fwrap">${form(b)}</div>
    <div class="btns"><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
@@ -965,7 +965,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v44';let updAt=0;
+const APP_V='hondana-v45';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
