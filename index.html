@@ -228,6 +228,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 #case .sname{display:none}
 .ptr{height:0;overflow:hidden;display:flex;align-items:flex-end;justify-content:center;font-size:13px;color:var(--mute)}.ptr.go{color:var(--acc);font-weight:700}
 @media(hover:none){#pNew>.filters,#pReco>.filters{display:none}}
+#rcat{display:none}#seg button{font-size:13.5px;padding:0 2px;min-width:0;white-space:nowrap}#seg button[data-p=rank]{flex:1.35}
 </style>
 </head>
 <body>
@@ -290,7 +291,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
   </section>
 
   <section id="v-news" class="sec" hidden>
-    <div class="seg" id="seg"><button data-p="new" aria-pressed="true">新刊</button><button data-p="reco" aria-pressed="false">おすすめ</button><button data-p="rank" aria-pressed="false">ランキング</button></div>
+    <div class="seg" id="seg"><button data-p="new" aria-pressed="true">新刊</button><button data-p="book" aria-pressed="false">単行本</button><button data-p="bunko" aria-pressed="false">文庫</button><button data-p="manga" aria-pressed="false">マンガ</button><button data-p="rank" aria-pressed="false">ランキング</button></div>
     <div id="pReco" hidden>
       <div class="seg sub" id="rcat"></div>
       <div class="filters ctr"><button class="pri" id="rcheck">探し直す</button><span class="note" id="rlast" style="margin:0"></span></div><div class="pbar" id="rbar" hidden><i></i></div>
@@ -1010,9 +1011,9 @@ function fitList(){requestAnimationFrame(()=>{if($('#v-news').hidden)return;cons
   if(k==='rank')lim-=$('#rankSet').offsetHeight;
   const top=L.getBoundingClientRect().top;L.classList.add('iscroll');L.style.maxHeight=Math.max(160,lim-top)+'px'})}
 addEventListener('resize',fitList);$('#nset').addEventListener('toggle',fitList);
-function showSeg(k){scrollTo(0,0);S.seg=k;for(const b of document.querySelectorAll('#seg button'))b.setAttribute('aria-pressed',b.dataset.p===k);
+function showSeg(k){scrollTo(0,0);S.seg=k;const on=k==='reco'?(S.rcat||'book'):k;for(const b of document.querySelectorAll('#seg button'))b.setAttribute('aria-pressed',b.dataset.p===on);
   $('#pNew').hidden=k!=='new';$('#pReco').hidden=k!=='reco';$('#pRank').hidden=k!=='rank';fitList();if(k==='reco'&&recoStale())checkReco();if(k==='rank')loadRank(S.rgen||'001')}
-$('#seg').onclick=e=>{const b=e.target.closest('[data-p]');if(b){showSeg(b.dataset.p);save()}};
+$('#seg').onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;const p=b.dataset.p;if(RCAT.some(([k])=>k===p)){S.rcat=p;showSeg('reco');renderReco();$('#reco').scrollTop=0}else showSeg(p);save()};
 /* 「読みたい」に直接追加（読みたい棚へ入る） */
 function addWish(n){const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));if(n.isbn&&owned.has(n.isbn))return toast('もう登録されています');
   const b={id:uid(),isbn:n.isbn||'',title:n.title||'',author:n.author||'',publisher:n.publisher||'',pubdate:n.pubdate||'',status:'wish',mode:'spine',memo:'',cover:n.cover||'',added:Date.now()};
@@ -1185,7 +1186,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v79';let updAt=0;
+const APP_V='hondana-v80';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
