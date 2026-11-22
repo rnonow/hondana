@@ -10,4 +10,4 @@
 
 データはブラウザの localStorage に保存されます。端末を変える時は「データ」から書き出し・読み込みしてください。
 
-`lib/html5-qrcode.min.js` は [html5-qrcode](https://github.com/mebjas/html5-qrcode) 2.3.8（Apache-2.0）です。
+`lib/zxing-reader.js` と `lib/zxing_reader.wasm` は [zxing-wasm](https://github.com/Sec-ant/zxing-wasm) 3.1.5（MIT、中身は ZXing-C++）です。
