@@ -115,7 +115,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 #caseName.multi{padding-right:18px;background:linear-gradient(45deg,transparent 50%,currentColor 50%) right 6px center/6px 6px no-repeat,linear-gradient(-45deg,transparent 50%,currentColor 50%) right 0 center/6px 6px no-repeat}
 #caseMore{border:0;background:none;font-size:22px;padding:4px 8px;min-width:36px}
 #findBtn{min-width:48px;min-height:44px;padding:4px 10px;display:inline-flex;align-items:center;justify-content:center}#findBtn[aria-pressed=true]{background:var(--ink);color:var(--wall)}
-#gearBtn{font-size:26px;min-width:48px;min-height:44px;padding:4px 10px}
+#gearBtn{min-width:48px;min-height:44px;padding:4px 10px;display:inline-flex;align-items:center;justify-content:center}
 .ttlwrap .menu{left:0;right:auto}
 .mwrap{position:relative}.more{min-width:44px;font-size:18px;line-height:1;padding:8px 12px}
 .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:38;display:flex;flex-direction:column;gap:4px;min-width:210px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px;box-shadow:0 12px 30px #0004}
@@ -146,7 +146,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
  :root{--k:.82}
  .spine .ti{font-size:11.5px;letter-spacing:0}.spine .au{font-size:9px}
  #v-shelf>.note{font-size:12px;margin:0 0 8px}
- h1{font-size:21px;margin:0}header{gap:8px}header .pri{padding:8px 12px}header{gap:6px;flex-wrap:nowrap}.ttl{font-size:19px;letter-spacing:0}header .wide{display:none}.ttlwrap{flex:1 1 auto;margin-right:2px}#findBtn,#gearBtn{min-width:40px;padding:4px 6px}header .pri{padding:8px 8px;font-size:13px}#caseMore{padding:4px 4px;min-width:28px}header .pri,#ioBtn,#helpBtn{padding:8px 9px;font-size:14px;white-space:nowrap}
+ h1{font-size:21px;margin:0}header{gap:8px}header .pri{padding:8px 12px}header{gap:6px;flex-wrap:nowrap}.ttl{font-size:19px;letter-spacing:0}header .wide{display:none}.ttlwrap{flex:1 1 auto;margin-right:2px}#findBtn,#gearBtn{min-width:40px;min-height:40px;padding:4px 6px}header .pri{padding:8px 8px;font-size:13px}#caseMore{padding:4px 4px;min-width:28px}header .pri,#ioBtn,#helpBtn{padding:8px 9px;font-size:14px;white-space:nowrap}
  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;gap:0;flex-wrap:nowrap;background:var(--panel);border-top:1px solid var(--line);padding:4px 6px calc(4px + env(safe-area-inset-bottom))}
  .tabs button{flex:1;border:0;border-radius:10px;min-height:48px;font-size:14px;background:none}
  .tabs button[aria-pressed=true]{background:var(--ink);color:var(--wall)}
@@ -166,6 +166,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 </head>
 <body>
 <header>
+  <div class="mwrap gearwrap"><button id="gearBtn" class="more" aria-label="設定" aria-expanded="false"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  <div class="menu" id="gearMenu" hidden style="left:0;right:auto"><button id="ioBtn">データ</button><button id="helpBtn">使い方</button></div></div>
   <div class="ttlwrap"><span class="ttlbox"><span id="caseName" class="ttl"></span><select id="caseSel" aria-label="本棚を選ぶ"></select></span>
       <div class="mwrap"><button id="caseMore" class="more" aria-label="本棚のメニュー" aria-expanded="false">…</button>
       <div class="menu" id="caseMenu" hidden>
@@ -187,8 +189,6 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
   <span class="sp"></span>
   <button class="pri" id="addBtn" aria-label="本を追加">＋ <span class="wide">本を</span>追加</button>
   <button id="findBtn" class="more" aria-label="蔵書を探す"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>
-  <div class="mwrap"><button id="gearBtn" class="more" aria-label="設定" aria-expanded="false">⚙︎</button>
-  <div class="menu" id="gearMenu" hidden><button id="ioBtn">データ</button><button id="helpBtn">使い方</button></div></div>
 </header>
 
 <main>
@@ -838,7 +838,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v32';let updAt=0;
+const APP_V='hondana-v33';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
