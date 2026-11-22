@@ -231,7 +231,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
   </div>
   <nav class="tabs" id="tabs">
     <button data-v="shelf" aria-pressed="true">本棚</button>
-    <button data-v="read" aria-pressed="false">読書中</button>
+    <button data-v="read" aria-pressed="false">栞</button>
     <button data-v="news" aria-pressed="false">選書</button>
   </nav>
   <span class="sp"></span>
@@ -1100,7 +1100,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v69';let updAt=0;
+const APP_V='hondana-v70';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
