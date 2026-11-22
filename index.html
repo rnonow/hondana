@@ -226,6 +226,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .more.dot,#ioBtn.dot{position:relative}.more.dot::after,#ioBtn.dot::after{content:"";position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--acc)}
 .actrow{display:flex;align-items:center;gap:10px}.actrow label{flex:none;width:6em;margin:0}.actrow select{flex:1}
 #case .sname{display:none}
+.ptr{height:0;overflow:hidden;display:flex;align-items:flex-end;justify-content:center;font-size:13px;color:var(--mute)}.ptr.go{color:var(--acc);font-weight:700}
+@media(hover:none){#pNew>.filters,#pReco>.filters{display:none}}
 </style>
 </head>
 <body>
@@ -292,12 +294,12 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <div id="pReco" hidden>
       <div class="seg sub" id="rcat"></div>
       <div class="filters ctr"><button class="pri" id="rcheck">探し直す</button><span class="note" id="rlast" style="margin:0"></span></div><div class="pbar" id="rbar" hidden><i></i></div>
-      <p class="msg" id="rmsg"></p><div id="reco"></div></div>
-    <div id="pRank" hidden><div class="seg" id="rgen" style="margin-bottom:10px"></div><p class="msg" id="rankMsg"></p><div id="rank"></div><div id="rankSet"></div></div>
+      <p class="msg" id="rmsg"></p><div class="ptr" id="ptrReco"></div><div id="reco"></div></div>
+    <div id="pRank" hidden><div class="seg" id="rgen" style="margin-bottom:10px"></div><p class="msg" id="rankMsg"></p><div class="ptr" id="ptrRank"></div><div id="rank"></div><div id="rankSet"></div></div>
     <div id="pNew">
     <div class="filters ctr"><button class="pri" id="fcheck">今すぐ確認</button><span class="note" id="nlast" style="margin:0"></span></div><div class="pbar" id="nbar" hidden><i></i></div>
     <p class="msg" id="nmsg"></p>
-    <div id="news"></div>
+    <div class="ptr" id="ptrNew"></div><div id="news"></div>
     <details id="nset" style="margin-top:18px"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">▸ 追いかける対象の設定</summary>
       <p class="note" id="ntgt"></p>
       <h3 style="font-size:14px">追わないにしたもの（タップで元に戻す）</h3><div class="follow" id="mutes"></div>
@@ -987,7 +989,7 @@ function renderNews(){fitList();pruneNews();const N=NEWS_RUN&&NEWS_TMP?NEWS_TMP:
   const T=targets();$('#ntgt').textContent=`いま追いかけているもの：シリーズ ${T.filter(t=>t.type==='title').length}件、著者 ${T.filter(t=>t.type==='author').length}件（本棚の本から自動）`;
   $('#mutes').innerHTML=(S.mute||[]).map((k,i)=>`<button class="chip" data-um="${i}">${esc(k.slice(2))} <i>戻す</i></button>`).join('')||'<span class="note">なし</span>';
   $('#follows').innerHTML=(S.follows||[]).map((f,i)=>`<button class="chip" data-rm="${i}">${f.type==='author'?'著者':'シリーズ'}：${esc(f.q)} <i>×</i></button>`).join('');
-  if(!NEWS_RUN&&N){m.className='msg'+(N.fail?' err':'');m.textContent=N.fail?'新刊情報に接続できませんでした。少し待って「今すぐ確認」を押してください':N.items.length?`${N.items.length}冊見つかりました（持っている本は除いています）`:'最近の新刊は見つかりませんでした'}
+  if(!NEWS_RUN&&N){m.className='msg'+(N.fail?' err':'');m.textContent=N.fail?'新刊情報に接続できませんでした。少し待って、一覧を下に引っぱってください':N.items.length?`${N.items.length}冊見つかりました（持っている本は除いています）`:'最近の新刊は見つかりませんでした'}
   const items=N?.items||[];
   $('#news').innerHTML=items.map((n,i)=>`<div class="rel">${faceHTML(n,100)}<div><b>${esc(n.title)}</b>${n.pubdate>today?'<span class="badge">発売予定</span>':''}
     <div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div><div class="d">${esc(n.label)}　<button class="chip" style="min-height:30px;padding:2px 10px" data-mute="${i}">この${n.key[0]==='a'?'著者':'シリーズ'}を追わない</button></div></div>
@@ -1038,7 +1040,7 @@ function renderReco(){fitList();const R0=RECO_RUN&&RECO_TMP?RECO_TMP:S.reco;cons
   const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));const all=(R0?.items||[]).filter(x=>!owned.has(x.isbn)&&!(S.mute||[]).includes(x.key));
   const cat=S.rcat||'book';$('#rcat').innerHTML=RCAT.map(([k,n])=>{const c=all.filter(x=>x.cat===k).length;return `<button data-c="${k}" aria-pressed="${k===cat}">${n}${c?`<small> ${c}</small>`:''}</button>`}).join('');
   const items=all.filter(x=>x.cat===cat);
-  if(!RECO_RUN&&R0){m.className='msg'+(R0.fail?' err':'');m.textContent=R0.fail?'つながりませんでした。少し待って「探し直す」を押してください':items.length?'':'この種類のおすすめは見つかりませんでした'}
+  if(!RECO_RUN&&R0){m.className='msg'+(R0.fail?' err':'');m.textContent=R0.fail?'つながりませんでした。少し待って、一覧を下に引っぱってください':items.length?'':'この種類のおすすめは見つかりませんでした'}
   $('#reco').innerHTML=items.map(n=>`<div class="rel">${faceHTML(n,100)}<div><b>${esc(n.title)}</b><div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div>
     <div class="d">${esc(n.label)}　<button class="chip" style="min-height:30px;padding:2px 10px" data-rmute="${esc(n.key)}">この著者は出さない</button></div></div>
     <button class="wish" data-ri="${esc(n.isbn)}">読みたい</button></div>`).join('')}
@@ -1082,7 +1084,7 @@ $('#rgen').onclick=e=>{const b=e.target.closest('[data-g]');if(b)loadRank(b.data
 $('#rank').onclick=e=>{const b=e.target.closest('[data-rk]');if(!b)return;const n=S.rank[S.rgen||'001'].items[+b.dataset.rk];addWish({isbn:n.isbn,title:n.title,author:n.author,publisher:n.publisher,pubdate:n.pubdate});renderRank()};
 $('#mutes').onclick=e=>{const b=e.target.closest('[data-um]');if(b){S.mute.splice(+b.dataset.um,1);save();renderNews()}};
 $('#follows').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){S.follows.splice(+b.dataset.rm,1);save();renderNews()}};
-$('#fadd').onclick=()=>{const q=$('#fq').value.trim();if(!q)return;S.follows=S.follows||[];S.follows.push({q,type:$('#ft').value});$('#fq').value='';save();renderNews();toast('追加しました。「今すぐ確認」で探せます')};
+$('#fadd').onclick=()=>{const q=$('#fq').value.trim();if(!q)return;S.follows=S.follows||[];S.follows.push({q,type:$('#ft').value});$('#fq').value='';save();renderNews();toast('追加しました。一覧を下に引っぱると探せます')};
 $('#fq').onkeydown=e=>{if(e.key==='Enter')$('#fadd').click()};
 $('#fcheck').onclick=()=>checkNews();
 const newsStale=()=>!S.news||Date.now()-S.news.t>12*3600e3;
@@ -1150,6 +1152,17 @@ document.addEventListener('touchstart',e=>{const t=e.touches[0];TX=t.clientX;TY=
 document.addEventListener('touchmove',e=>{if(D?.on||e.touches.length>1)return;if(e.target.closest('.panel,.menu,#viewer:not([hidden]),.scan'))return;const sc=e.target.closest('.iscroll');if(sc&&sc.scrollHeight>sc.clientHeight+1)return;
   const t=e.touches[0];if(Math.abs(t.clientY-TY)<=Math.abs(t.clientX-TX))return;
   const el=document.scrollingElement;const nl=!$('#v-list').hidden||!$('#v-read').hidden||!$('#v-news').hidden&&$('#v-news .iscroll')&&!$('#nset').open&&!$('#rankSet details[open]');if(!$('#v-shelf').hidden||nl||el.scrollHeight<=innerHeight+2)e.preventDefault()},{passive:false});
+/* 選書：一覧の一番上でさらに下へ引っぱると更新（引っぱって更新） */
+let PULL=null;
+document.addEventListener('touchstart',e=>{PULL=null;if($('#v-news').hidden||e.touches.length>1)return;const k=S.seg||'new';
+  if(e.target.closest('#nset,#rankSet,.seg,button,input,select,a'))return;const L=$({new:'#news',reco:'#reco',rank:'#rank'}[k]);if(!L||L.scrollTop>0)return;
+  if(e.target.closest('#tabs,header,.panel'))return;PULL={k,y:e.touches[0].clientY,x:e.touches[0].clientX,d:0,el:$({new:'#ptrNew',reco:'#ptrReco',rank:'#ptrRank'}[k])}},{passive:true});
+document.addEventListener('touchmove',e=>{if(!PULL)return;const t=e.touches[0],dy=t.clientY-PULL.y;const L=$({new:'#news',reco:'#reco',rank:'#rank'}[PULL.k]);
+  if(dy<=0||L.scrollTop>0||Math.abs(t.clientX-PULL.x)>dy){if(!PULL.d){PULL=null;return}}
+  e.preventDefault();PULL.d=Math.max(0,dy);const h=Math.min(64,PULL.d*.45);const busy=PULL.k==='new'?NEWS_RUN:PULL.k==='reco'?RECO_RUN:false;
+  PULL.el.style.height=h+'px';PULL.el.textContent=busy?'探しています…':PULL.d>110?'↻ 離すと更新します':'↓ 引っぱって更新';PULL.el.classList.toggle('go',PULL.d>110)},{passive:false});
+document.addEventListener('touchend',()=>{if(!PULL)return;const P=PULL;PULL=null;P.el.style.height='';P.el.textContent='';P.el.classList.remove('go');if(P.d<=110)return;
+  navigator.vibrate?.(10);if(P.k==='new')checkNews();else if(P.k==='reco')checkReco();else loadRank(S.rgen||'001',true)});
 /* 下の「本棚」タブ：2回タップで次の本棚へ、長押しで本棚の一覧から選ぶ */
 function flashCase(){const c=curCase();let f=$('#caseFlash');if(!f){f=document.createElement('div');f.id='caseFlash';document.body.append(f)}
   f.textContent=c.name;f.classList.remove('on');void f.offsetWidth;f.classList.add('on')}
@@ -1168,7 +1181,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v77';let updAt=0;
+const APP_V='hondana-v78';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
