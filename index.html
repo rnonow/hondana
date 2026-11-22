@@ -84,6 +84,12 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .ghost{position:fixed;z-index:50;pointer-events:none;opacity:.9;rotate:-3deg;filter:drop-shadow(0 12px 16px #0008)}
 .bk.dragging{opacity:.25}
 .mark{flex:none;width:4px;height:150px;background:var(--acc);border-radius:2px;box-shadow:0 0 0 3px #d9482b55}
+.row.pile{flex-direction:column;align-items:center;gap:1px;padding:10px 12px 0;overflow-x:hidden;overflow-y:auto;height:calc(170px * var(--k) + 22px)}
+.row.pile>:first-child{margin-top:auto}.row.pile .empty{margin:auto}
+.row.pile .bk.pb{width:var(--pw);flex:none;translate:var(--px) 0}
+.pspine{height:calc(30px * var(--k) + 6px);background:var(--c);color:var(--t);border-radius:2px;display:flex;align-items:center;padding:0 12px;box-shadow:inset 0 3px 4px -2px #fff5,inset 0 -4px 5px -2px #0007,0 2px 3px #0005;font-weight:700;font-size:12.5px;overflow:hidden}
+.pspine span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.pile .mark{width:70%;height:4px}
 .tray{margin-top:22px;max-width:1240px}
 .tray h3,.sec h3{font-size:16px;margin:0 0 6px}
 .tray .row{background:var(--tray);box-shadow:inset 0 4px 10px #0003;min-height:170px;border-radius:6px}
@@ -231,7 +237,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <div class="tray lockshelf" style="margin-top:0;margin-bottom:22px"><h3>読書中 <span class="note" id="readN"></span></h3><div id="readGather"></div>
       <div class="row locked" id="readRow" data-shelf="reading"></div></div>
     <div class="tray lockshelf" style="margin-top:0;margin-bottom:22px"><h3>積読 <span class="note" id="tsunN"></span></h3><div id="tsunGather"></div>
-      <div class="row locked" id="tsunRow" data-shelf="tsun"></div></div>
+      <div class="row locked pile iscroll" id="tsunRow" data-shelf="tsun"></div></div>
     <div class="tray lockshelf" style="margin-top:0;margin-bottom:22px"><h3>読みたい <span class="note" id="wishN"></span></h3><div id="wishGather"></div>
       <div class="row locked" id="wishRow" data-shelf="wish"></div></div>
   </section>
@@ -345,6 +351,9 @@ function coverHTML(b){const src=coverSrc(b);
 function faceHTML(b,fh){const L=look(b);return `<div class="face" style="--c:${L.c};--t:${L.t};--fh:${fh||L.h}px">${coverHTML(b)}</div>`}
 const tcy=t=>esc(t).replace(/(?<![\d&#])\d{1,3}(?!\d|;)/g,m=>`<span class="tcy${m.length>2?' d3':''}">${m}</span>`);
 const tiSize=t=>{const n=[...String(t||'')].length;return n>26?' style="font-size:9px"':n>13?' style="font-size:10px"':n>9?' style="font-size:11.5px"':''};
+/* 積読：本を横に寝かせて積み上げる（新しい本が一番上）。高さが足りない時は山の中だけ上下にスクロール */
+function pileHTML(id){const b=S.books[id];if(!b)return '';const L=look(b),h=hash(b.id);
+  return `<div class="bk pb st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)}" tabindex="0" style="--pw:${76+h%20}%;--px:${(h>>5)%13-6}px"><div class="pspine" style="--c:${L.c};--t:${L.t}"><span>${esc(b.title)}</span></div></div>`}
 function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
   const src=coverSrc(b);
   const inner=b.mode==='face'?faceHTML(b,L.h):
@@ -400,7 +409,7 @@ function renderShelf(){fitRead();sweepTray();renderSampleBar();renderSerDrag();
   renderPages(c);
   for(const [k,st,row,nEl,gEl,lab,emp] of [['reading','reading','#readRow','#readN','#readGather','読書中','「読書中」にした本がここに入ります'],['tsun','unread','#tsunRow','#tsunN','#tsunGather','積読','「積読」にした本が登録順にここに入ります'],['wish','wish','#wishRow','#wishN','#wishGather','読みたい','「読みたい」にした本がここに入ります']]){
     const L=listOf(k);for(const id of [...L]){const b=S.books[id];if(!b||b.status!==st){L.splice(L.indexOf(id),1);if(b&&!placeOf(id))bottomList().push(id)}}L.sort(byAdded);
-    $(row).innerHTML=L.map(bookHTML).join('')||`<span class="empty">${emp}</span>`;$(nEl).textContent=L.length?`${L.length}冊`:'';
+    $(row).innerHTML=(k==='tsun'?[...L].reverse().map(pileHTML):L.map(bookHTML)).join('')||`<span class="empty">${emp}</span>`;if(k==='tsun')$(row).scrollTop=0;$(nEl).textContent=L.length?`${L.length}冊`:'';
     const out=Object.values(S.books).filter(b=>b.status===st&&!L.includes(b.id));
     $(gEl).innerHTML=out.length?`<button data-gather="${k}">ほかの場所にある${lab}の本（${out.length}冊）もここに集める</button>`:''}
 }
@@ -578,7 +587,7 @@ document.addEventListener('pointermove',e=>{
   let row=document.elementFromPoint(e.clientX,e.clientY)?.closest('.row');
   if(!row){D.m.remove();D.to=null}else{
   const kids=[...row.querySelectorAll('.bk')].filter(k=>k!==D.el&&!D.gs.has(k.dataset.id));
-  let i=kids.findIndex(k=>{const r=k.getBoundingClientRect();return e.clientX<r.left+r.width/2});
+  let i=row.classList.contains('pile')?kids.findIndex(k=>{const r=k.getBoundingClientRect();return e.clientY<r.top+r.height/2}):kids.findIndex(k=>{const r=k.getBoundingClientRect();return e.clientX<r.left+r.width/2});
   if(i<0)i=kids.length;
   row.querySelector('.empty')?.setAttribute('hidden','');
   if(i<kids.length)row.insertBefore(D.m,kids[i]);else row.append(D.m);
@@ -991,7 +1000,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>同じ段にある同じシリーズは、まとめて巻数順に動きます。1冊だけ動かしたいときは「シリーズまとめて動かす」をオフにします。</li>
   <li>「まとめて選ぶ」で本をタップして選ぶと、まとめて動かしたり、巻数順に並べたり、色を変えたりできます。</li>
   <li>本をタップすると詳細が開きます。「表紙を見せて飾る」にすると表紙が見える置き方になります。背表紙の色もここで変えられます（同じシリーズにまとめて使えます）。</li>
-  <li>「読書中」「積読」「読みたい」にした本は、下のタブ「読書中」にあるそれぞれの棚へ自動で入ります（積読は登録順）。3つの棚の間でドラッグすると、状態もその棚に合わせて変わります。読了にすると本棚の一番下の段の最後に移ります。</li>
+  <li>「読書中」「積読」「読みたい」にした本は、下のタブ「読書中」にあるそれぞれの棚へ自動で入ります。積読は横に寝かせて積み上がり、新しい本が一番上です（多い時は山の中を上下にスクロール）。3つの棚の間でドラッグすると、状態もその棚に合わせて変わります。読了にすると本棚の一番下の段の最後に移ります。</li>
   <li>本棚の右上の「…」から、本棚や段の追加、画像で保存、共有リンク、まとめて選ぶなどができます。データと使い方は右上の ⚙ にあります。</li>
   <li>背表紙の色は、タイトルの言葉（「海」なら青など）からおすすめの色が最初に選ばれます。本をタップして編集すると、おすすめの色から選び直せます。文字の色は背景に合わせて白か黒に自動で変わります。</li>
   <li>「蔵書を探す」で絞り込んだり並べ替えたりした本は、「本棚に並べて見る」で本棚に並べて見られます（著者順・出版社順なら著者・出版社ごとに段が分かれます）。「元の本棚に戻す」で元の並びに戻ります。並べて見ている間は本を動かせません。</li>
@@ -1037,7 +1046,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v62';let updAt=0;
+const APP_V='hondana-v63';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
