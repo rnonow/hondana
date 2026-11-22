@@ -169,7 +169,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <button id="selMode" aria-pressed="false">まとめて選ぶ</button>
     </div>
     <p class="note">本を長押し（パソコンはドラッグ）すると持ち上がり、好きな段・位置へ動かせます。タップで詳細を開き「表紙を見せて飾る」にすると面陳になります。</p>
-    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selClr">選択をやめる</button>
+    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button>
       <p class="note" style="flex-basis:100%;margin:0">本をタップして選び、選んだ本のどれかを長押し（パソコンはドラッグ）すると、まとめて動かせます。</p></div>
     <div class="case" id="case"></div>
     <div class="tray">
@@ -246,8 +246,12 @@ function volOf(b){if(b.vol!==undefined&&b.vol!=='')return parseFloat(z2h(b.vol))
 function seriesOf(b){if(b.series)return b.series.trim();const t=z2h(b.title);const m=t.match(VOL_RE);return (m?t.slice(0,m.index):t).replace(/[\s　.,:：・-]+$/,'').trim()}
 const byVol=(a,b)=>seriesOf(S.books[a]).localeCompare(seriesOf(S.books[b]),'ja')||volOf(S.books[a])-volOf(S.books[b]);
 /* ---- 本の見た目 ---- */
-function look(b){const h=hash(b.isbn||b.title);const p=b.color?[b.color,b.tcolor||'#fff']:PAL[h%PAL.length];
-  return {c:p[0],t:p[1],h:150+(h%5)*10,w:30+(hash(b.title)%4)*6}}
+/* 背表紙は単色。同じシリーズは色・高さ・幅がそろう。色は 本ごとの指定 → シリーズの指定 → 自動 の順 */
+const skey=b=>z2h(seriesOf(b)).toLowerCase().replace(/[\s　]+/g,'');
+function look(b,own=true){const k=skey(b),h=hash(k||b.isbn||b.title);const st=(S.seriesStyle||{})[k];
+  const p=own&&b.color?[b.color,b.tcolor||'#ffffff']:st?[st.c,st.t]:PAL[h%PAL.length];
+  return {c:p[0],t:p[1],h:150+(h%5)*10,w:30+(hash(k+'w')%4)*6}}
+const seriesBooks=b=>{const k=skey(b);return Object.values(S.books).filter(x=>skey(x)===k)};
 /* 表紙画像：自分で選んだ画像 → ISBNから Google ブックスの表紙画像（画像がない本は灰色の仮画像が返るので、幅で見分けて外す） */
 const coverSrc=b=>b.cover||(b.isbn&&/^97[89]\d{10}$/.test(b.isbn)?`https://books.google.com/books/content?vid=ISBN${b.isbn}&printsec=frontcover&img=1&zoom=1&fife=w400`:'');
 const IMG_ON=`onerror="this.remove()" onload="if(this.dataset.g&&this.naturalWidth<=130){this.remove()}else{this.parentNode.classList.add('hasimg')}"`;
@@ -259,7 +263,7 @@ function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
   const src=coverSrc(b);
   const inner=b.mode==='face'?faceHTML(b,L.h+10):
     b.spine?`<div class="spine photo" style="--c:${L.c};--h:${L.h}px;--w:${b.spineW||L.w}px"><img src="${esc(b.spine)}" alt=""></div>`:
-    `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px">${src?`<img class="bg" src="${esc(src)}" alt="" loading="lazy" ${b.cover?'':'data-g="1"'} ${IMG_ON}>`:''}<span class="ti">${esc(b.title)}</span><span class="au">${esc(b.author)}</span></div>`;
+    `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px"><span class="ti">${esc(b.title)}</span><span class="au">${esc(b.author)}</span></div>`;
   return `<div class="bk st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
 
 /* ---- 本棚 ---- */
@@ -281,6 +285,15 @@ function renderSel(){$('#selbar').hidden=!SELMODE;$('#selMode').setAttribute('ar
   for(const el of document.querySelectorAll('#v-shelf .bk'))el.classList.toggle('sel',SEL.has(el.dataset.id))}
 $('#selMode').onclick=()=>{SELMODE=!SELMODE;if(!SELMODE)SEL.clear();renderSel()};
 $('#selClr').onclick=()=>{SEL.clear();SELMODE=false;renderSel()};
+$('#selColor').onclick=()=>{if(!SEL.size)return toast('先に本を選んでください');const f=S.books[[...SEL][0]];const L=look(f);
+  openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の背表紙の色</h2>
+   <div class="two"><div class="fld"><label>背表紙の色</label><input type="color" id="mc" value="${L.c}" style="height:48px;padding:2px"></div><div class="fld"><label>文字の色</label><input type="color" id="mt" value="${L.t}" style="height:48px;padding:2px"></div></div>
+   <div class="prev" style="gap:4px" id="mprev"></div>
+   <div class="btns"><button class="pri" id="mOk">まとめて変える</button><button id="mReset">自動の色に戻す</button></div>`);
+  const pv=()=>{$('#mprev').innerHTML=[...SEL].slice(0,8).map(id=>{const b=S.books[id],l=look(b);return `<div class="spine" style="--k:1;--c:${$('#mc').value};--t:${$('#mt').value};--h:${l.h}px;--w:${l.w}px"><span class="ti">${esc(b.title)}</span></div>`}).join('')};
+  pv();$('#mc').oninput=pv;$('#mt').oninput=pv;
+  $('#mOk').onclick=()=>{for(const id of SEL){S.books[id].color=$('#mc').value;S.books[id].tcolor=$('#mt').value}save();renderShelf();renderSel();closePanel();toast('色を変えました')};
+  $('#mReset').onclick=()=>{for(const id of SEL){delete S.books[id].color;delete S.books[id].tcolor;if(S.seriesStyle)delete S.seriesStyle[skey(S.books[id])]}save();renderShelf();renderSel();closePanel();toast('自動の色に戻しました')}};
 $('#selSeries').onclick=()=>{if(!SEL.size)return toast('先にシリーズの本を1冊タップしてください');const ser=new Set([...SEL].map(id=>seriesOf(S.books[id])));
   for(const b of Object.values(S.books))if(ser.has(seriesOf(b))&&placeOf(b.id))SEL.add(b.id);renderSel();toast(`${SEL.size}冊を選びました`)};
 $('#selSort').onclick=()=>{if(SEL.size<2)return toast('2冊以上選んでください');
@@ -363,10 +376,13 @@ function form(b){return `
   <div class="two"><div class="fld"><label>状態</label><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
   <div class="fld"><label>本棚での見せ方</label><select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
   <div class="two"><div class="fld"><label>背表紙の色</label><input type="color" id="f-color" value="${look(b).c}" style="height:42px;padding:2px"></div><div class="fld"><label>文字の色</label><input type="color" id="f-tcolor" value="${look(b).t}" style="height:42px;padding:2px"></div></div>
+  ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}
   <div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>
   <div class="fld"><label>メモ</label><textarea id="f-memo" rows="3">${esc(b.memo)}</textarea></div>`}
 function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol'])b[k]=$('#f-'+k).value.trim();
-  const c=$('#f-color').value,t=$('#f-tcolor').value;const L0=look({...b,color:null});if(b.color||c!==L0.c||t!==L0.t){b.color=c;b.tcolor=t}b.isbn=normIsbn(b.isbn)||b.isbn}
+  const c=$('#f-color').value,t=$('#f-tcolor').value;const L0=look(b);
+  if(c!==L0.c||t!==L0.t){if($('#f-sall')?.checked){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c,t};for(const x of seriesBooks(b)){delete x.color;delete x.tcolor}delete b.color;delete b.tcolor}else{b.color=c;b.tcolor=t}}
+  b.isbn=normIsbn(b.isbn)||b.isbn}
 function bindImg(b){
   const pick=cb=>{const inp=$('#imgIn');inp.value='';inp.onchange=()=>{const f=inp.files[0];if(f)cb(f)};inp.click()};
   $('#imgBtn').onclick=()=>pick(f=>shrink(f,360).then(u=>{b.cover=u;$('.prev .face').outerHTML=faceHTML(b,150);toast('表紙を設定しました')}));
