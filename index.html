@@ -968,17 +968,21 @@ let NEWS_RUN=false;
 async function checkNews(){if(NEWS_RUN)return;const T=targets();const m=$('#nmsg');m.className='msg';
   if(!T.length){m.textContent='本棚に本を登録すると、その本のシリーズや著者の新刊を探します';return}
   NEWS_RUN=true;$('#fcheck').disabled=true;
+  // 速くするため：前回の結果をそのまま出しておき、3件ずつ同時に問い合わせ、前回確認した対象は前回以降の分だけ探す
   const since=new Date(Date.now()-90*864e5).toISOString().slice(0,7);const owned=new Set(Object.values(S.books).map(b=>b.isbn));
-  const hide=new Set(S.newsHide||[]);const seen=new Set();const out=[];let fail=0,done=0;
-  const t0=Date.now();NEWS_TMP={t:Date.now(),items:out};
-  for(const t of T){progress('#fcheck','#nbar','#nmsg',++done,T.length,t0,`「${t.q}」の新刊`);let got=0;
-    try{const items=await ndl(`${t.type==='author'?'creator':'title'}=${encodeURIComponent(t.q)}&from=${since}&cnt=60`);
+  const hide=new Set(S.newsHide||[]);const seen=new Set();let fail=0,done=0;S.newsChk=S.newsChk||{};
+  const out=(S.news?.items||[]).filter(n=>n.pubdate>=since&&!owned.has(n.isbn)&&!hide.has(n.isbn));for(const n of out)seen.add(n.isbn);
+  const t0=Date.now();NEWS_TMP={t:Date.now(),items:out};renderNews();progress('#fcheck','#nbar','#nmsg',0,T.length,t0,'新刊');
+  const one=async t=>{let got=0;const c=S.newsChk[t.key];const from=c?new Date(Math.max(c-14*864e5,Date.now()-90*864e5)).toISOString().slice(0,7):since;
+    try{const items=await ndl(`${t.type==='author'?'creator':'title'}=${encodeURIComponent(t.q)}&from=${from}&cnt=${c?30:60}`);
       for(const n of items){if(!n.isbn||n.pubdate<since||owned.has(n.isbn)||hide.has(n.isbn)||seen.has(n.isbn))continue;
         if(t.type==='title'){if(normKey(seriesOf(n))!==normKey(t.q))continue;const v=volOf(n);if(v&&t.max&&v<=t.max)continue}
         seen.add(n.isbn);out.push({...n,key:t.key,label:(t.type==='author'?'著者：':'シリーズ：')+t.q});got++}
+      S.newsChk[t.key]=Date.now();
       if(got){out.sort((a,b)=>b.pubdate.localeCompare(a.pubdate));renderNews()}
     }catch(e){fail++}
-    await new Promise(r=>setTimeout(r,350))}
+    progress('#fcheck','#nbar','#nmsg',++done,T.length,t0,'新刊')};
+  const Q=[...T];await Promise.all([0,1,2].map(async()=>{while(Q.length){await one(Q.shift());await new Promise(r=>setTimeout(r,150))}}));
   out.sort((a,b)=>b.pubdate.localeCompare(a.pubdate));
   S.news={t:Date.now(),items:out,fail:fail===T.length};save();NEWS_RUN=false;NEWS_TMP=null;progress('#fcheck','#nbar','#nmsg',-1);$('#fcheck').disabled=false;renderNews();renderBadge()}
 // 今の本棚に無いシリーズ・著者（消した本やサンプルの本）の新刊は出さない
@@ -1181,7 +1185,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v78';let updAt=0;
+const APP_V='hondana-v79';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
