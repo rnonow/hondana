@@ -345,11 +345,12 @@ async function lookup(isbn){
   return null}
 /* 国立国会図書館サーチ OpenSearch（新刊・発売予定も含む） */
 const ndlDate=d=>{d=String(d||'').trim();let m=d.match(/^(\d{4})[-.年](\d{1,2})(?:[-.月](\d{1,2}))?/);if(m)return [m[1],m[2].padStart(2,'0'),m[3]?.padStart(2,'0')].filter(Boolean).join('-');return d.slice(0,4)};
-async function ndl(qs){const r=await fetch('https://ndlsearch.ndl.go.jp/api/opensearch?'+qs);if(!r.ok)throw 0;
+const ndlName=t=>{t=t.replace(/[\s　]*(著|作|文|絵|訳|編)$/,'').replace(/,\s*\d{4}-(\d{4})?\s*$/,'').trim();const p=t.split(/\s*,\s*/);return /[A-Za-z]/.test(t)?p.reverse().join(' '):p.join('').replace(/\s+/g,'')};
+async function ndl(qs){let r;for(let k=0;k<3;k++){r=await fetch('https://ndlsearch.ndl.go.jp/api/opensearch?'+qs);if(r.status!==429)break;await new Promise(o=>setTimeout(o,1500*(k+1)))}if(!r.ok)throw 0;
   const d=new DOMParser().parseFromString(await r.text(),'text/xml');const g=(i,t)=>i.getElementsByTagName(t)[0]?.textContent?.trim()||'';
   return [...d.getElementsByTagName('item')].map(i=>{const ids=[...i.getElementsByTagName('dc:identifier')];
     const isbn=normIsbn((ids.find(e=>/ISBN/.test(e.getAttribute('xsi:type')||''))||{}).textContent);
-    return {isbn,title:[g(i,'dc:title')||g(i,'title'),g(i,'dcndl:volume')].filter(Boolean).join(' '),author:[...i.getElementsByTagName('dc:creator')].map(e=>e.textContent.replace(/[\s　]*(著|作|文|絵|訳)$/,'').replace(/\s+/g,'')).filter((v,k,a)=>a.indexOf(v)===k).join('・'),
+    return {isbn,title:[g(i,'dc:title')||g(i,'title'),g(i,'dcndl:volume')].filter(Boolean).join(' '),author:[...i.getElementsByTagName('dc:creator')].map(e=>ndlName(e.textContent)).filter((v,k,a)=>a.indexOf(v)===k).join('・'),
       publisher:g(i,'dc:publisher'),pubdate:ndlDate(g(i,'dcterms:issued')),cover:''}})}
 const fmtDate=d=>{d=String(d||'');return d.length===8?`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`:d.length===6?`${d.slice(0,4)}-${d.slice(4)}`:d};
 function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...pre};
