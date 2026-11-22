@@ -243,7 +243,9 @@ const curCase=()=>S.cases.find(c=>c.id===S.cur);
 const z2h=t=>String(t||'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
 const VOL_RE=/[\s　]*(?:[（(［\[]\s*)?(?:第|巻|vol\.?|Vol\.?|VOL\.?|#)?\s*(\d{1,4}|上|中|下)\s*(?:巻|集|号)?\s*(?:[)）］\]])?\s*$/;
 function volOf(b){if(b.vol!==undefined&&b.vol!=='')return parseFloat(z2h(b.vol))||0;const m=z2h(b.title).match(VOL_RE);if(!m)return 0;return {上:1,中:2,下:3}[m[1]]||parseInt(m[1])}
-function seriesOf(b){if(b.series)return b.series.trim();const t=z2h(b.title);const m=t.match(VOL_RE);return (m?t.slice(0,m.index):t).replace(/[\s　.,:：・-]+$/,'').trim()}
+// 「葬送のフリーレン = FRIEREN.」のような併記タイトルを外す
+const cleanTitle=t=>String(t||'').replace(/\s+[=＝]\s.*$/,'').trim();
+function seriesOf(b){if(b.series)return b.series.trim();const t=cleanTitle(z2h(b.title));const m=t.match(VOL_RE);return (m?t.slice(0,m.index):t).replace(/[\s　.,:：・-]+$/,'').trim()}
 const byVol=(a,b)=>seriesOf(S.books[a]).localeCompare(seriesOf(S.books[b]),'ja')||volOf(S.books[a])-volOf(S.books[b]);
 /* ---- 本の見た目 ---- */
 /* 背表紙は単色。同じシリーズは色・高さ・幅がそろう。色は 本ごとの指定 → シリーズの指定 → 自動 の順 */
@@ -404,7 +406,7 @@ function normIsbn(s){s=String(s||'').replace(/[^0-9Xx]/g,'').toUpperCase();
   return s.length===13?s:''}
 async function lookup(isbn){
   try{const r=await fetch('https://api.openbd.jp/v1/get?isbn='+isbn);const j=await r.json();const s=j?.[0]?.summary;
-    if(s)return {title:[s.title,s.volume].filter(Boolean).join(' '),author:obdAuthor(s.author),publisher:s.publisher||'',pubdate:fmtDate(s.pubdate),cover:s.cover||'',src:'openBD'}}catch(e){}
+    if(s)return {title:[cleanTitle(s.title),s.volume].filter(Boolean).join(' '),author:obdAuthor(s.author),publisher:s.publisher||'',pubdate:fmtDate(s.pubdate),cover:s.cover||'',src:'openBD'}}catch(e){}
   try{const r=await fetch('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn);const j=await r.json();const v=j.items?.[0]?.volumeInfo;
     if(v)return {title:[v.title,v.subtitle].filter(Boolean).join(' '),author:(v.authors||[]).join('・'),publisher:v.publisher||'',pubdate:v.publishedDate||'',cover:(v.imageLinks?.thumbnail||'').replace('http:','https:'),src:'Google Books'}}catch(e){}
   try{const r=await ndl('isbn='+isbn+'&cnt=5');const n=r.find(x=>x.isbn===isbn)||r[0];if(n)return {...n,isbn,src:'国立国会図書館サーチ'}}catch(e){}
@@ -417,7 +419,7 @@ async function ndl(qs){let r;for(let k=0;k<3;k++){r=await fetch('https://ndlsear
   const d=new DOMParser().parseFromString(await r.text(),'text/xml');const g=(i,t)=>i.getElementsByTagName(t)[0]?.textContent?.trim()||'';
   return [...d.getElementsByTagName('item')].map(i=>{const ids=[...i.getElementsByTagName('dc:identifier')];
     const isbn=normIsbn((ids.find(e=>/ISBN/.test(e.getAttribute('xsi:type')||''))||{}).textContent);
-    return {isbn,title:[g(i,'dc:title')||g(i,'title'),g(i,'dcndl:volume')].filter(Boolean).join(' '),author:[...i.getElementsByTagName('dc:creator')].map(e=>ndlName(e.textContent)).filter((v,k,a)=>a.indexOf(v)===k).join('・'),
+    return {isbn,title:[cleanTitle(g(i,'dc:title')||g(i,'title')),g(i,'dcndl:volume')].filter(Boolean).join(' '),author:[...i.getElementsByTagName('dc:creator')].map(e=>ndlName(e.textContent)).filter((v,k,a)=>a.indexOf(v)===k).join('・'),
       publisher:g(i,'dc:publisher'),pubdate:ndlDate(g(i,'dcterms:issued')),cover:''}})}
 const fmtDate=d=>{d=String(d||'');return d.length===8?`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`:d.length===6?`${d.slice(0,4)}-${d.slice(4)}`:d};
 function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...pre};
