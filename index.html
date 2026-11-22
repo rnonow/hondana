@@ -357,9 +357,9 @@ const tiSize=t=>{const n=[...String(t||'')].length;return n>26?' style="font-siz
 /* 積読：本を横に寝かせて積み上げる（新しい本が一番上）。高さが足りない時は山の中だけ上下にスクロール */
 function pileHTML(id){const b=S.books[id];if(!b)return '';const L=look(b),h=hash(b.id),h2=hash(b.id+'x'),h3=hash('r'+b.id);
   return `<div class="bk pb st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)}" tabindex="0" style="--pw:${70+h%18}%;--px:${h2%25-12}%;--pr:${(h3%41-20)/10}deg"><div class="pspine" style="--c:${L.c};--t:${L.t}"><span>${esc(b.title)}</span></div></div>`}
-function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
+function bookHTML(id,force){const b=S.books[id];if(!b)return '';const L=look(b);const mode=typeof force==='string'?force:b.mode;
   const src=coverSrc(b);
-  const inner=b.mode==='face'?faceHTML(b,L.h):
+  const inner=mode==='face'?faceHTML(b,L.h):
     b.spine?`<div class="spine photo" style="--c:${L.c};--h:${L.h}px;--w:${L.w}px"><img src="${esc(b.spine)}" alt=""></div>`:
     `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px"><span class="ti"${tiSize(b.title)}>${tcy(b.title)}</span></div>`;
   return `<div class="bk st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
@@ -412,7 +412,7 @@ function renderShelf(){fitRead();sweepTray();renderSampleBar();renderSerDrag();
   renderPages(c);
   for(const [k,st,row,nEl,gEl,lab,emp] of [['reading','reading','#readRow','#readN','#readGather','読書中','「読書中」にした本がここに入ります'],['tsun','unread','#tsunRow','#tsunN','#tsunGather','積読','「積読」にした本が登録順にここに入ります'],['wish','wish','#wishRow','#wishN','#wishGather','読みたい','「読みたい」にした本がここに入ります']]){
     const L=listOf(k);for(const id of [...L]){const b=S.books[id];if(!b||b.status!==st){L.splice(L.indexOf(id),1);if(b&&!placeOf(id))bottomList().push(id)}}L.sort(byAdded);
-    $(row).innerHTML=(k==='tsun'?[...L].reverse().map(pileHTML):L.map(bookHTML)).join('')||`<span class="empty">${emp}</span>`;if(k==='tsun')$(row).scrollTop=0;$(nEl).textContent=L.length?`${L.length}冊`:'';
+    $(row).innerHTML=(k==='tsun'?[...L].reverse().map(pileHTML):L.map(id=>bookHTML(id,k==='reading'?'face':'spine'))).join('')||`<span class="empty">${emp}</span>`;if(k==='tsun')$(row).scrollTop=0;$(nEl).textContent=L.length?`${L.length}冊`:'';
     const out=Object.values(S.books).filter(b=>b.status===st&&!L.includes(b.id));
     $(gEl).innerHTML=out.length?`<button data-gather="${k}">ほかの場所にある${lab}の本（${out.length}冊）もここに集める</button>`:''}
 }
@@ -1065,7 +1065,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v65';let updAt=0;
+const APP_V='hondana-v66';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
