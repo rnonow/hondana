@@ -30,7 +30,8 @@
 :root[data-theme=light]{color-scheme:light}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--wall);color:var(--ink);font:15px/1.55 "Zen Kaku Gothic New",system-ui,sans-serif;overflow-x:clip}
-html,body{overscroll-behavior:none}.panel{overscroll-behavior:contain}.iscroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+html,body{overscroll-behavior:none}.panel{overscroll-behavior:contain}.pbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:4px 0 8px}.pbar i{display:block;height:100%;width:0;background:var(--acc);border-radius:3px;transition:width .4s}
+button.busy{opacity:1!important;cursor:progress;font-variant-numeric:tabular-nums}.iscroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 button,input,select,textarea{font:inherit;color:inherit}
 button{white-space:nowrap;cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;min-height:40px}
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
@@ -245,13 +246,13 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <div class="seg" id="seg"><button data-p="new" aria-pressed="true">新刊</button><button data-p="reco" aria-pressed="false">おすすめ</button><button data-p="rank" aria-pressed="false">ランキング</button></div>
     <div id="pReco" hidden>
       <div class="seg sub" id="rcat"></div>
-      <div class="filters ctr"><button class="pri" id="rcheck">探し直す</button><span class="note" id="rlast" style="margin:0"></span></div>
+      <div class="filters ctr"><button class="pri" id="rcheck">探し直す</button><span class="note" id="rlast" style="margin:0"></span></div><div class="pbar" id="rbar" hidden><i></i></div>
       <p class="msg" id="rmsg"></p><div id="reco"></div></div>
     <div id="pRank" hidden><div class="seg" id="rgen" style="margin-bottom:10px"></div><p class="msg" id="rankMsg"></p><div id="rank"></div><div id="rankSet"></div></div>
     <div id="pNew">
     <h3>新刊チェック</h3>
     <p class="note">本棚にある本のシリーズと著者から、最近90日に出た本と発売予定の本を自動で探します（国立国会図書館サーチ）。アプリを開いた時に半日に1回確認します。</p>
-    <div class="filters ctr"><button class="pri" id="fcheck">今すぐ確認</button><span class="note" id="nlast" style="margin:0"></span></div>
+    <div class="filters ctr"><button class="pri" id="fcheck">今すぐ確認</button><span class="note" id="nlast" style="margin:0"></span></div><div class="pbar" id="nbar" hidden><i></i></div>
     <p class="msg" id="nmsg"></p>
     <div id="news"></div>
     <details id="nset" style="margin-top:18px"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">▸ 追いかける対象の設定</summary>
@@ -838,20 +839,22 @@ async function checkNews(){if(NEWS_RUN)return;const T=targets();const m=$('#nmsg
   NEWS_RUN=true;$('#fcheck').disabled=true;
   const since=new Date(Date.now()-90*864e5).toISOString().slice(0,7);const owned=new Set(Object.values(S.books).map(b=>b.isbn));
   const hide=new Set(S.newsHide||[]);const seen=new Set();const out=[];let fail=0,done=0;
-  for(const t of T){m.textContent=`確認中… ${++done}/${T.length}（${t.q}）`;
+  const t0=Date.now();NEWS_TMP={t:Date.now(),items:out};
+  for(const t of T){progress('#fcheck','#nbar','#nmsg',++done,T.length,t0,`「${t.q}」の新刊`);let got=0;
     try{const items=await ndl(`${t.type==='author'?'creator':'title'}=${encodeURIComponent(t.q)}&from=${since}&cnt=60`);
       for(const n of items){if(!n.isbn||n.pubdate<since||owned.has(n.isbn)||hide.has(n.isbn)||seen.has(n.isbn))continue;
         if(t.type==='title'){if(normKey(seriesOf(n))!==normKey(t.q))continue;const v=volOf(n);if(v&&t.max&&v<=t.max)continue}
-        seen.add(n.isbn);out.push({...n,key:t.key,label:(t.type==='author'?'著者：':'シリーズ：')+t.q})}
+        seen.add(n.isbn);out.push({...n,key:t.key,label:(t.type==='author'?'著者：':'シリーズ：')+t.q});got++}
+      if(got){out.sort((a,b)=>b.pubdate.localeCompare(a.pubdate));renderNews()}
     }catch(e){fail++}
     await new Promise(r=>setTimeout(r,350))}
   out.sort((a,b)=>b.pubdate.localeCompare(a.pubdate));
-  S.news={t:Date.now(),items:out,fail:fail===T.length};save();NEWS_RUN=false;$('#fcheck').disabled=false;renderNews();renderBadge()}
+  S.news={t:Date.now(),items:out,fail:fail===T.length};save();NEWS_RUN=false;NEWS_TMP=null;progress('#fcheck','#nbar','#nmsg',-1);$('#fcheck').disabled=false;renderNews();renderBadge()}
 // 今の本棚に無いシリーズ・著者（消した本やサンプルの本）の新刊は出さない
 function pruneNews(){if(!S.news?.items)return;const K=new Set(targets().map(t=>t.key));const L=S.news.items.filter(x=>K.has(x.key));if(L.length!==S.news.items.length){S.news.items=L;if(!Object.keys(S.books).length)S.news=null;save()}}
 function renderBadge(){pruneNews();const seen=new Set(S.newsSeen||[]);const n=(S.news?.items||[]).filter(x=>!seen.has(x.isbn)).length;$('[data-v=news]').textContent=n?`選書（${n}）`:'選書'}
-function renderNews(){fitList();pruneNews();const N=S.news;const m=$('#nmsg');const today=new Date().toISOString().slice(0,10);
-  $('#nlast').textContent=N?`最終確認：${new Date(N.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
+function renderNews(){fitList();pruneNews();const N=NEWS_RUN&&NEWS_TMP?NEWS_TMP:S.news;const m=$('#nmsg');const today=new Date().toISOString().slice(0,10);
+  $('#nlast').textContent=N&&!NEWS_RUN?`最終確認：${new Date(N.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
   const T=targets();$('#ntgt').textContent=`いま追いかけているもの：シリーズ ${T.filter(t=>t.type==='title').length}件、著者 ${T.filter(t=>t.type==='author').length}件（本棚の本から自動）`;
   $('#mutes').innerHTML=(S.mute||[]).map((k,i)=>`<button class="chip" data-um="${i}">${esc(k.slice(2))} <i>戻す</i></button>`).join('')||'<span class="note">なし</span>';
   $('#follows').innerHTML=(S.follows||[]).map((f,i)=>`<button class="chip" data-rm="${i}">${f.type==='author'?'著者':'シリーズ'}：${esc(f.q)} <i>×</i></button>`).join('');
@@ -860,8 +863,8 @@ function renderNews(){fitList();pruneNews();const N=S.news;const m=$('#nmsg');co
   $('#news').innerHTML=items.map((n,i)=>`<div class="rel">${faceHTML(n,100)}<div><b>${esc(n.title)}</b>${n.pubdate>today?'<span class="badge">発売予定</span>':''}
     <div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div><div class="d">${esc(n.label)}　<button class="chip" style="min-height:30px;padding:2px 10px" data-mute="${i}">この${n.key[0]==='a'?'著者':'シリーズ'}を追わない</button></div></div>
     <button data-n="${i}">追加</button></div>`).join('');}
-$('#news').onclick=e=>{const items=S.news?.items||[];const today=new Date().toISOString().slice(0,10);
-  const mu=e.target.closest('[data-mute]');if(mu){const n=items[+mu.dataset.mute];S.mute=[...new Set([...(S.mute||[]),n.key])];S.news.items=items.filter(x=>x.key!==n.key);save();renderNews();renderBadge();toast('次から追いません');return}
+$('#news').onclick=e=>{const src=NEWS_RUN&&NEWS_TMP?NEWS_TMP:S.news;const items=src?.items||[];const today=new Date().toISOString().slice(0,10);
+  const mu=e.target.closest('[data-mute]');if(mu){const n=items[+mu.dataset.mute];S.mute=[...new Set([...(S.mute||[]),n.key])];for(let k=items.length-1;k>=0;k--)if(items[k].key===n.key)items.splice(k,1);save();renderNews();renderBadge();toast('次から追いません');return}
   const b=e.target.closest('[data-n]');if(!b)return;const n=items[+b.dataset.n];const{key,label,...rest}=n;addBook({...rest,status:n.pubdate>today?'wish':'unread'})};
 /* ---- 選書：切り替え ---- */
 /* 選書：上のボタンなどは固定して、一覧の部分だけをスクロールさせる */
@@ -881,22 +884,28 @@ function addWish(n){const owned=new Set(Object.values(S.books).map(b=>b.isbn).fi
   S.books[b.id]=b;placeByStatus(b);save();renderAll();toast(`「${b.title}」を読みたい棚に入れました`)}
 /* ---- おすすめ：持っている本の著者の、まだ持っていない本 ---- */
 const recoStale=()=>!S.reco||Date.now()-S.reco.t>3*864e5||(S.reco.items||[]).some(x=>!x.cat);let RECO_RUN=false;
+/* 待ち時間の見える化：ボタンに「探しています 3/12」、細い進行バー、残り時間の目安 */
+function progress(btn,bar,msg,i,n,t0,what){const b=$(btn),pb=$(bar);if(i<0){b.classList.remove('busy');b.textContent=b.dataset.lab||b.textContent;pb.hidden=true;return}
+  if(!b.dataset.lab)b.dataset.lab=b.textContent;b.classList.add('busy');b.textContent=`探しています ${i}/${n}`;pb.hidden=false;pb.firstChild.style.width=Math.round(i/n*100)+'%';
+  const per=i>1?(Date.now()-t0)/(i-1):2500,left=Math.round(per*(n-i+1)/1000);$(msg).className='msg';$(msg).textContent=`${what}を探しています。${left>3?`あと${left<60?'約'+left+'秒':'約'+Math.ceil(left/60)+'分'}`:'もうすぐ終わります'}（見つかった本から下に出ます）`}
+let RECO_TMP=null,NEWS_TMP=null;
 async function checkReco(){if(RECO_RUN)return;const m=$('#rmsg');const mute=new Set(S.mute||[]);const cnt={};
   for(const b of Object.values(S.books))for(const a of String(b.author).split('・').map(x=>x.trim()).filter(Boolean)){const k='a:'+normKey(a);if(!mute.has(k))(cnt[k]??={q:a,n:0,key:k}).n++}
   const A=Object.values(cnt).sort((x,y)=>y.n-x.n).slice(0,10);if(!A.length){m.textContent='本を登録すると、その著者のほかの本をおすすめします';return}
   RECO_RUN=true;$('#rcheck').disabled=true;const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));const ownSer=new Set(Object.values(S.books).map(skey));
   const hide=new Set(S.newsHide||[]);const newsI=new Set((S.news?.items||[]).map(x=>x.isbn));const seen=new Set();const out=[];let fail=0,i=0;
-  for(const a of A){m.textContent=`探しています… ${++i}/${A.length}（${a.q}）`;
+  const t0=Date.now();RECO_TMP={t:Date.now(),items:out};
+  for(const a of A){progress('#rcheck','#rbar','#rmsg',++i,A.length,t0,`「${a.q}」の本`);
     try{const bySer=new Map();for(const n of await ndl(`creator=${encodeURIComponent(a.q)}&cnt=80`)){
         if(!n.cat||!n.isbn||owned.has(n.isbn)||hide.has(n.isbn)||newsI.has(n.isbn)||seen.has(n.isbn))continue;if(ownSer.has(skey(n)))continue;const k=n.cat+'|'+skey(n);
         const p=bySer.get(k);if(!p||volOf(n)<volOf(p)||(volOf(n)===volOf(p)&&n.pubdate>p.pubdate))bySer.set(k,n)}
       const L=[...bySer.values()].sort((x,y)=>String(y.pubdate).localeCompare(String(x.pubdate))).filter((n,_,A)=>A.filter(x=>x.cat===n.cat).indexOf(n)<5);
-      for(const n of L){seen.add(n.isbn);out.push({...n,key:a.key,label:`${a.q}の本を${a.n}冊持っています`})}}catch(e){fail++}
+      for(const n of L){seen.add(n.isbn);out.push({...n,key:a.key,label:`${a.q}の本を${a.n}冊持っています`})}renderReco()}catch(e){fail++}
     await new Promise(r=>setTimeout(r,350))}
-  S.reco={t:Date.now(),items:out,fail:fail===A.length};save();RECO_RUN=false;$('#rcheck').disabled=false;renderReco()}
+  S.reco={t:Date.now(),items:out,fail:fail===A.length};save();RECO_RUN=false;RECO_TMP=null;progress('#rcheck','#rbar','#rmsg',-1);$('#rcheck').disabled=false;renderReco()}
 const RCAT=[['book','小説・単行本'],['bunko','小説・文庫'],['manga','マンガ']];
 $('#rcat').onclick=e=>{const b=e.target.closest('[data-c]');if(b){S.rcat=b.dataset.c;save();renderReco();$('#reco').scrollTop=0}};
-function renderReco(){fitList();const R0=S.reco;const m=$('#rmsg');$('#rlast').textContent=R0?`最終確認：${new Date(R0.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
+function renderReco(){fitList();const R0=RECO_RUN&&RECO_TMP?RECO_TMP:S.reco;const m=$('#rmsg');$('#rlast').textContent=R0&&!RECO_RUN?`最終確認：${new Date(R0.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
   const owned=new Set(Object.values(S.books).map(b=>b.isbn).filter(Boolean));const all=(R0?.items||[]).filter(x=>!owned.has(x.isbn)&&!(S.mute||[]).includes(x.key));
   const cat=S.rcat||'book';$('#rcat').innerHTML=RCAT.map(([k,n])=>{const c=all.filter(x=>x.cat===k).length;return `<button data-c="${k}" aria-pressed="${k===cat}">${n}${c?`<small> ${c}</small>`:''}</button>`}).join('');
   const items=all.filter(x=>x.cat===cat);
@@ -1008,7 +1017,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v56';let updAt=0;
+const APP_V='hondana-v57';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
