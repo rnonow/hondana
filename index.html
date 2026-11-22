@@ -111,6 +111,9 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .badge.own{background:var(--ok)}
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
+#viewer{position:fixed;inset:0;z-index:35;overflow:auto;background:var(--wall);padding:14px max(3vw,14px) 40px}
+#viewer .vhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}#viewer h2{margin:0;font-size:20px;flex:1 1 200px}
+#viewer .bk{cursor:pointer}
 [hidden]{display:none!important}
 .selbar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:10px;max-width:1240px}
 .selbar button{padding:6px 12px;min-height:38px}
@@ -168,6 +171,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <button id="shelfNew">段を追加</button>
       <button id="caseDel">本棚を削除</button>
       <button id="shotBtn">画像で保存</button>
+      <button id="linkBtn">共有リンク</button>
       <button id="serDrag" aria-pressed="true">シリーズまとめて動かす</button>
       <button id="selMode" aria-pressed="false">まとめて選ぶ</button>
     </div>
@@ -210,6 +214,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 </main>
 
 <aside class="panel" id="panel" aria-label="本の詳細"></aside>
+<div id="viewer" hidden></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="imgIn" accept="image/*" hidden>
 <input type="file" id="jsonIn" accept="application/json" hidden>
@@ -376,6 +381,40 @@ $('#shotBtn').onclick=async()=>{const c=curCase();if(!c.shelves.some(s=>s.books.
   const files=()=>SHOTS.map(x=>new File([x.blob],x.name,{type:'image/png'}));
   if($('#shotShare'))$('#shotShare').onclick=async()=>{try{await navigator.share({files:files(),title:c.name})}catch(e){if(e.name!=='AbortError')toast('共有できませんでした。画像を長押しして保存してください')}};
   $('#shotDl').onclick=()=>{for(const x of SHOTS){const a=document.createElement('a');a.href=x.url;a.download=x.name;document.body.append(a);a.click();a.remove()}}};
+/* ---- 共有リンク：本棚1つ分をURLの#以降に圧縮して入れる（サーバーには送られない）。開いた人は閲覧だけ ---- */
+const b64u={enc:u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode(...u8.subarray(i,i+0x8000));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')},
+  dec:t=>Uint8Array.from(atob(t.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))};
+async function packShare(c){const sh=c.shelves.map(s=>[s.name,s.books.filter(id=>S.books[id]).map(id=>{const b=S.books[id],L=look(b);
+    return [b.isbn||'',b.title||'',b.author||'',b.mode==='face'?1:0,L.c,L.t,L.w,b.status==='done'?1:b.status==='reading'?2:0]})]);
+  const raw=new TextEncoder().encode(JSON.stringify({v:1,n:c.name,d:new Date().toISOString().slice(0,10),s:sh}));
+  if(window.CompressionStream){const z=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());return 'z'+b64u.enc(z)}
+  return 'j'+b64u.enc(raw)}
+async function unpackShare(t){const u=b64u.dec(t.slice(1));const raw=t[0]==='z'?new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()):u;
+  return JSON.parse(new TextDecoder().decode(raw))}
+$('#linkBtn').onclick=async()=>{const c=curCase();if(!c.shelves.some(s=>s.books.length))return toast('この本棚にはまだ本がありません');
+  let url;try{url=location.href.split('#')[0].split('?')[0]+'#view='+await packShare(c)}catch(e){return toast('リンクを作れませんでした')}
+  const n=c.shelves.reduce((a,s)=>a+s.books.length,0);
+  openPanel(`<button class="x" data-close>閉じる</button><h2>共有リンク</h2>
+    <p class="msg">「${esc(c.name)}」の今の並び（${n}冊）をリンクにしました。リンクを知っている人だけが見られます。相手は見るだけで、変更はできません。メモは入りません。</p>
+    <div class="btns">${navigator.share?'<button class="pri" id="lkShare">送る（LINE・メッセージなど）</button>':''}<button id="lkCopy">リンクをコピー</button></div>
+    <p class="note">あとで本を並べ替えても、送ったリンクの中身は変わりません。新しい並びを見せたいときは、もう一度リンクを作って送ってください。（リンクの長さ：${url.length}文字）</p>`);
+  if($('#lkShare'))$('#lkShare').onclick=async()=>{try{await navigator.share({title:c.name,text:`本棚「${c.name}」`,url})}catch(e){}};
+  $('#lkCopy').onclick=async()=>{try{await navigator.clipboard.writeText(url);toast('リンクをコピーしました')}catch(e){prompt('このリンクをコピーしてください',url)}}};
+async function openViewer(){const m=location.hash.match(/^#view=([A-Za-z0-9_-]+)/);const V=$('#viewer');if(!m){V.hidden=true;V.innerHTML='';return}
+  let d;try{d=await unpackShare(m[1])}catch(e){V.hidden=false;V.innerHTML=`<p class="msg err">リンクが壊れているようです。もう一度送ってもらってください。</p><button id="vBack">自分の本棚へ</button>`;$('#vBack').onclick=closeViewer;return}
+  const st=['unread','done','reading'];const B=[];
+  const bk=r=>{const [isbn,title,author,face,c,t,w,s]=r;const i=B.push({isbn,title,author})-1;const b={isbn,title,author,cover:''};
+    const inner=face?`<div class="face" style="--c:${esc(c)};--t:${esc(t)};--fh:170px">${coverHTML(b)}</div>`:`<div class="spine" style="--c:${esc(c)};--t:${esc(t)};--h:170px;--w:${+w||30}px"><span class="ti"${tiSize(title)}>${tcy(title)}</span><span class="au">${tcy(author)}</span></div>`;
+    return `<div class="bk st-${st[s]||'unread'}" data-vi="${i}" title="${esc(title)}">${inner}</div>`};
+  const n=d.s.reduce((a,s)=>a+s[1].length,0);
+  V.innerHTML=`<div class="vhead"><h2>${esc(d.n)}</h2><button id="vBack">自分の本棚へ</button></div>
+    <p class="note">共有された本棚です（${esc(d.d||'')}時点・${n}冊）。見るだけで、あなたの本棚には何も追加・変更されません。本をタップすると書名が見られます。</p>
+    <div class="case">${d.s.map(([name,L])=>`<div class="shelf"><span class="sname">${esc(name)}</span><div class="row">${L.map(bk).join('')||'<span class="empty">（空）</span>'}</div><div class="board"></div></div>`).join('')}</div>`;
+  V.hidden=false;V.scrollTop=0;$('#vBack').onclick=closeViewer;
+  V.onclick=e=>{const el=e.target.closest('[data-vi]');if(!el)return;const b=B[+el.dataset.vi];
+    openPanel(`<button class="x" data-close>閉じる</button><h2>${esc(b.title)}</h2><p class="msg">${esc(b.author)}</p>${b.isbn?`<p class="note">ISBN ${esc(b.isbn)}</p>`:''}<div class="prev">${faceHTML({isbn:b.isbn,title:b.title,author:b.author,cover:''},150)}</div>`)}}
+function closeViewer(){history.replaceState(null,'',location.pathname+location.search+'#shelf');$('#viewer').hidden=true;$('#viewer').innerHTML='';show('shelf')}
+addEventListener('hashchange',openViewer);
 /* 同じ段にある同じシリーズ（巻のある本）をまとめて返す。1冊だけなら null */
 function sameShelfSeries(id){const b=S.books[id];if(!b||!volOf(b))return null;const k=skey(b);
   const sid=[...S.cases.flatMap(c=>c.shelves.map(x=>x.id)),'tray'].find(x=>listOf(x).includes(id));if(!sid)return null;
@@ -707,10 +746,10 @@ $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</butt
 /* ---- 画面切替 ---- */
 function renderAll(){renderShelf();renderList();renderNews();renderBadge()}
 function show(v){for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
-  for(const s of ['shelf','list','news'])$('#v-'+s).hidden=s!==v;if(location.hash!=='#'+v)history.replaceState(null,'','#'+v);
+  for(const s of ['shelf','list','news'])$('#v-'+s).hidden=s!==v;if(location.hash!=='#'+v&&!location.hash.startsWith('#view='))history.replaceState(null,'','#'+v);
   if(v==='news'){if(newsStale())checkNews();S.newsSeen=(S.news?.items||[]).map(x=>x.isbn);save();setTimeout(renderBadge,1500)}}
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
-addEventListener('hashchange',()=>show(location.hash.slice(1)||'shelf'));
+addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(newsStale()&&Object.keys(S.books).length)setTimeout(()=>checkNews(),2500);
 /* 一度だけ：シリーズの色をそろえる（以前の版で一括登録した本の色がばらばらだったため） */
@@ -720,6 +759,7 @@ if(!S.mig2){const nk=k=>k.replace(/[\s　・.,:：!！?？『』「」()（）\-
     const n={};for(const b of own){const c=b.color+'|'+(b.tcolor||'#ffffff');n[c]=(n[c]||0)+1}const [c,t]=Object.entries(n).sort((a,b)=>b[1]-a[1])[0][0].split('|');
     st[k]={c,t};for(const b of L){delete b.color;delete b.tcolor}}
   S.mig2=true;save()}
+openViewer();
 renderAll();show(['shelf','list','news'].includes(location.hash.slice(1))?location.hash.slice(1):'shelf');
 }
 </script>
