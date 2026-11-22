@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>わたしの本棚</title>
+<meta name="theme-color" content="#6e4526">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="本棚">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 静かで手ざわりのある、自分の部屋の本棚
+   IDEA: 壁に据えた木の本棚。背表紙を並べ、好きな本だけ表紙を見せて飾る
+   PICTURE: 本棚そのもの（棚板・影・背表紙・面陳）が画面の主役
+   COLOUR/TYPE: 深い壁色＋胡桃材＋背表紙の色。Zen Kaku Gothic New
+   LAYOUT: 上に細いツールバー、中央に本棚、右から詳細パネル */
+:root{color-scheme:light dark;
+--wall:light-dark(#e7e2d8,#1d2326);--ink:light-dark(#22201c,#ece7de);--mute:light-dark(#6d675e,#a29b90);
+--panel:light-dark(#fffdf8,#272e31);--line:light-dark(#d6cfc2,#3a4347);
+--wood:light-dark(#8a5a35,#6b4427);--wood2:light-dark(#6e4526,#4f3019);--woodhi:light-dark(#b07c4f,#8a5b36);
+--back:light-dark(#3b2a1e,#1a120c);--acc:#d9482b;--ok:#2f7d5b;--k:1}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--wall);color:var(--ink);font:15px/1.55 "Zen Kaku Gothic New",system-ui,sans-serif;overflow-x:clip}
+button,input,select,textarea{font:inherit;color:inherit}
+button{white-space:nowrap;cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;min-height:40px}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+input,select,textarea{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 10px;font-size:16px;width:100%}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:calc(14px + env(safe-area-inset-top)) max(3vw,14px,env(safe-area-inset-right)) 14px max(3vw,14px,env(safe-area-inset-left))}
+h1{font-size:26px;line-height:1.05;margin:0 12px 0 0;font-weight:900;letter-spacing:.02em}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button[aria-pressed=true]{background:var(--ink);color:var(--wall);border-color:var(--ink)}
+.sp{flex:1}
+main{padding:0 max(3vw,14px) 40px}
+.note{color:var(--mute);font-size:13px;margin:4px 0 12px}
+/* 本棚 */
+.casebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.casebar select{width:auto}
+.case{background:linear-gradient(90deg,var(--wood2),var(--wood) 6%,var(--wood) 94%,var(--wood2));padding:14px 14px 0;border-radius:6px 6px 0 0;box-shadow:0 18px 40px -18px #0008;max-width:1240px}
+.shelf{position:relative;margin-bottom:14px}
+.sname{position:absolute;left:8px;top:6px;z-index:2;font-size:12px;color:#f3e6d6;opacity:.75;background:none;border:0;padding:0;min-height:0}
+.row{display:flex;align-items:flex-end;gap:2px;min-height:210px;padding:26px 12px 0;overflow-x:auto;overflow-y:hidden;
+ background:linear-gradient(180deg,#0006,#0000 30%),var(--back);box-shadow:inset 0 8px 18px #000a,inset 8px 0 14px -6px #0009,inset -8px 0 14px -6px #0009;scrollbar-width:thin}
+.board{height:16px;background:linear-gradient(180deg,var(--woodhi),var(--wood) 35%,var(--wood2));box-shadow:0 6px 8px -4px #0009}
+.empty{color:#e8d9c6;opacity:.5;font-size:13px;align-self:center;margin:auto}
+.bk{flex:none;position:relative;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:grab;transition:transform .15s;-webkit-tap-highlight-color:transparent}
+@media(hover:hover){.bk:hover{transform:translateY(-6px)}}
+.bk.lift{transform:translateY(-10px) scale(1.06)}
+body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+.spine{width:calc(var(--w) * var(--k));height:calc(var(--h) * var(--k));background:var(--c);border-radius:2px 2px 0 0;color:var(--t);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10px 0 8px;
+ box-shadow:inset 3px 0 4px -2px #fff5,inset -4px 0 5px -2px #0007;overflow:hidden}
+.spine .ti{writing-mode:vertical-rl;font-weight:700;font-size:13px;line-height:1.1;max-height:68%;overflow:hidden;letter-spacing:.06em}
+.spine .au{writing-mode:vertical-rl;font-size:10px;opacity:.8;max-height:28%;overflow:hidden;white-space:nowrap}
+.spine::before,.spine::after{content:"";position:absolute;left:0;right:0;height:2px;background:#fff3}.spine::before{top:6px}.spine::after{bottom:4px}
+.face{height:calc(var(--fh) * var(--k));width:calc(var(--fh) * var(--k) * .7);margin:0 6px;box-shadow:6px 4px 10px #000a;position:relative;background:var(--c);overflow:hidden;border-radius:1px}
+.face img{width:100%;height:100%;object-fit:cover;display:block}
+.gen{position:absolute;inset:0;padding:12px 10px;display:flex;flex-direction:column;justify-content:space-between;color:var(--t)}
+.gen b{font-size:15px;line-height:1.25;text-wrap:balance}.gen small{font-size:11px;opacity:.85}
+.gen::after{content:"";position:absolute;left:0;right:0;top:38%;height:3px;background:currentColor;opacity:.25}
+.face .stand{display:none}
+.bk.st-done::after,.bk.st-reading::after{content:"";position:absolute;top:-8px;left:50%;translate:-50%;width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.bk.st-reading::after{background:#e2b23a}
+.ghost{position:fixed;z-index:50;pointer-events:none;opacity:.9;rotate:-3deg;filter:drop-shadow(0 12px 16px #0008)}
+.bk.dragging{opacity:.25}
+.mark{flex:none;width:4px;height:150px;background:var(--acc);border-radius:2px;box-shadow:0 0 0 3px #d9482b55}
+.tray{margin-top:22px;max-width:1240px}
+.tray h3,.sec h3{font-size:16px;margin:0 0 6px}
+.tray .row{background:light-dark(#d9d2c5,#151a1c);box-shadow:inset 0 4px 10px #0003;min-height:170px;border-radius:6px}
+.tray .empty{color:var(--mute);opacity:1}
+/* パネル */
+.panel{position:fixed;inset:0 0 0 auto;width:min(420px,100%);background:var(--panel);box-shadow:-20px 0 40px #0005;padding:20px;overflow:auto;z-index:40;translate:105% 0;visibility:hidden;transition:translate .25s,visibility .25s}
+.panel.open{translate:0;visibility:visible}
+.panel h2{font-size:20px;margin:0 0 12px;line-height:1.3}
+.fld{margin-bottom:10px}.fld label{display:block;font-size:13px;color:var(--mute);margin-bottom:3px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.x{float:right;min-height:36px;padding:4px 12px}
+.prev{display:flex;gap:14px;align-items:flex-end;margin:6px 0 14px}
+.prev .face{--fh:150px;--k:1;margin:0}
+.msg{font-size:13px;color:var(--mute);min-height:1.5em}
+.msg.err{color:var(--acc)}
+/* 一覧・新刊 */
+.sec{max-width:1240px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:18px 14px;margin-top:12px}
+.card{white-space:normal;background:none;border:0;padding:0;text-align:left;min-height:0;display:flex;flex-direction:column;gap:6px}
+.card .face{--fh:170px;--k:1;margin:0;width:100%;height:auto;aspect-ratio:.7}
+.card .t{font-weight:700;font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .a{font-size:12px;color:var(--mute)}
+.filters{display:flex;gap:8px;flex-wrap:wrap}.filters input{flex:1 1 220px;width:auto}.filters select{width:auto}
+.follow{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chip{border-radius:99px;padding:4px 6px 4px 12px;min-height:34px;display:inline-flex;gap:6px;align-items:center}
+.chip span{font-size:13px}.chip i{font-style:normal;opacity:.6;padding:0 6px}
+.rel{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.rel .face{--fh:100px;--k:1;margin:0}
+.rel .d{font-size:12px;color:var(--mute)}
+.badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;background:var(--acc);color:#fff;margin-left:6px}
+.badge.own{background:var(--ok)}
+.toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+.scan{position:relative;background:#000;border-radius:10px;overflow:hidden;min-height:220px;margin:8px 0}
+.scan video{width:100%!important;display:block}
+@media(max-width:600px){
+ :root{--k:.82}
+ .spine .ti{font-size:11.5px;letter-spacing:0}.spine .au{font-size:9px}
+ #v-shelf>.note{font-size:12px;margin:0 0 8px}
+ h1{font-size:21px;margin:0}header{gap:8px}header .pri{padding:8px 12px}
+ .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;gap:0;flex-wrap:nowrap;background:var(--panel);border-top:1px solid var(--line);padding:4px 6px calc(4px + env(safe-area-inset-bottom))}
+ .tabs button{flex:1;border:0;border-radius:10px;min-height:48px;font-size:14px;background:none}
+ .tabs button[aria-pressed=true]{background:var(--ink);color:var(--wall)}
+ main{padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+ .casebar{flex-wrap:nowrap;overflow-x:auto;margin:0 calc(-1 * max(3vw,14px)) 6px;padding:2px max(3vw,14px);scrollbar-width:none}
+ .casebar>*{flex:none}.casebar button{padding:6px 12px;font-size:14px}
+ .row{min-height:170px;padding:24px 8px 0}.case{padding:8px 6px 0;margin:0 -6px}
+ .tray .row{min-height:140px}
+ .panel{inset:auto 0 0 0;width:100%;max-height:88dvh;border-radius:18px 18px 0 0;translate:0 105%;box-shadow:0 -10px 40px #0005;padding:14px 16px calc(20px + env(safe-area-inset-bottom))}
+ .panel::before{content:"";display:block;width:44px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 10px}
+ .toast{bottom:calc(80px + env(safe-area-inset-bottom))}
+ .grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:14px 10px}
+ .rel{grid-template-columns:60px minmax(0,1fr) auto}.rel .face{--fh:84px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>わたしの本棚</h1>
+  <nav class="tabs" id="tabs">
+    <button data-v="shelf" aria-pressed="true">本棚</button>
+    <button data-v="list" aria-pressed="false">蔵書一覧</button>
+    <button data-v="news" aria-pressed="false">新刊チェック</button>
+  </nav>
+  <span class="sp"></span>
+  <button class="pri" id="addBtn">＋ 本を追加</button>
+  <button id="ioBtn">データ</button>
+</header>
+
+<main>
+  <section id="v-shelf">
+    <div class="casebar">
+      <select id="caseSel" aria-label="本棚を選ぶ"></select>
+      <button id="caseNew">本棚を追加</button>
+      <button id="caseRen">名前変更</button>
+      <button id="shelfNew">段を追加</button>
+      <button id="caseDel">本棚を削除</button>
+    </div>
+    <p class="note">本を長押し（パソコンはドラッグ）すると持ち上がり、好きな段・位置へ動かせます。タップで詳細を開き「表紙を見せて飾る」にすると面陳になります。</p>
+    <div class="case" id="case"></div>
+    <div class="tray">
+      <h3>未配置の本</h3>
+      <div class="row" id="tray" data-shelf="tray"></div>
+    </div>
+  </section>
+
+  <section id="v-list" class="sec" hidden>
+    <div class="filters">
+      <input id="q" placeholder="タイトル・著者・出版社で検索" aria-label="検索">
+      <select id="fst" aria-label="状態"><option value="">すべての状態</option><option value="unread">積読</option><option value="reading">読書中</option><option value="done">読了</option><option value="wish">欲しい</option></select>
+      <select id="sort" aria-label="並び順"><option value="added">追加が新しい順</option><option value="title">タイトル順</option><option value="author">著者順</option><option value="pub">発売日が新しい順</option></select>
+    </div>
+    <p class="note" id="count"></p>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="v-news" class="sec" hidden>
+    <h3>フォロー中の著者・シリーズ</h3>
+    <p class="note">登録したキーワードで Google Books を新しい順に検索し、最近90日以内と発売予定の本を表示します。日本の新刊はデータが遅れることがあります。</p>
+    <div class="follow" id="follows"></div>
+    <div class="filters">
+      <input id="fq" placeholder="著者名やシリーズ名（例：ヨシタケシンスケ）" aria-label="フォローするキーワード">
+      <select id="ft" aria-label="種類"><option value="author">著者</option><option value="title">シリーズ・タイトル</option></select>
+      <button id="fadd">フォロー</button>
+      <button class="pri" id="fcheck">新刊を確認</button>
+    </div>
+    <p class="note" id="sugg"></p>
+    <p class="msg" id="nmsg"></p>
+    <div id="news"></div>
+  </section>
+</main>
+
+<aside class="panel" id="panel" aria-label="本の詳細"></aside>
+<div class="toast" id="toast"></div>
+<input type="file" id="imgIn" accept="image/*" hidden>
+<input type="file" id="jsonIn" accept="application/json" hidden>
+
+<script>
+{
+const KEY='hondana.v1';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10);
+const hash=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;return Math.abs(h)};
+const PAL=[['#2d4a6b','#f1e9da'],['#7d2a2a','#f6e7d7'],['#e5c76b','#2a2420'],['#3d6b4f','#f2efe6'],['#ddd5c4','#2c2a26'],['#1f1f22','#e9c46a'],['#b4532a','#fff3e4'],['#5b4b8a','#f3eefc'],['#8fb3c9','#1c2a33'],['#c98b8b','#2b1d1d'],['#f2f0ea','#b4532a'],['#2a6f73','#fbefd9']];
+const ST={unread:'積読',reading:'読書中',done:'読了',wish:'欲しい'};
+
+function sample(){
+  const B=[
+    ['9784003101018','こころ','夏目漱石','岩波書店','1927'],['9784101010014','吾輩は猫である','夏目漱石','新潮社','1961'],
+    ['9784062748681','ノルウェイの森 上','村上春樹','講談社','2004'],['9784167158057','博士の愛した数式','小川洋子','文藝春秋','2005'],
+    ['9784041026229','かがみの孤城','辻村深月','ポプラ社','2017'],['9784103534211','りんごかもしれない','ヨシタケシンスケ','ブロンズ新社','2013'],
+    ['9784167910761','コンビニ人間','村田沙耶香','文藝春秋','2018'],['9784309464930','銀河鉄道の夜','宮沢賢治','河出書房新社','2019'],
+    ['9784087711868','羊と鋼の森','宮下奈都','文藝春秋','2015'],['9784334039462','火車','宮部みゆき','新潮社','1998'],
+    ['9784480021984','星の王子さま','サン＝テグジュペリ','筑摩書房','2006'],['9784101092058','人間失格','太宰治','新潮社','1952']];
+  const books={};const ids=B.map(([isbn,title,author,publisher,pubdate],i)=>{const id=uid();books[id]={id,isbn:"",title,author,publisher,pubdate,status:['done','unread','reading','done'][i%4],mode:(i===4||i===5)?'face':'spine',memo:'',added:Date.now()-i*864e5,cover:''};return id});
+  return {books,tray:[],follows:[{q:'辻村深月',type:'author'},{q:'ヨシタケシンスケ',type:'author'}],
+    cases:[{id:uid(),name:'リビングの本棚',shelves:[{id:uid(),name:'上段',books:ids.slice(0,6)},{id:uid(),name:'中段',books:ids.slice(6,10)},{id:uid(),name:'下段',books:ids.slice(10)}]}],cur:null,sample:true};
+}
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!S.cases){S=sample()}
+if(!S.cur||!S.cases.find(c=>c.id===S.cur))S.cur=S.cases[0].id;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('この環境では保存できません')}};
+const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)};
+const curCase=()=>S.cases.find(c=>c.id===S.cur);
+
+/* ---- 本の見た目 ---- */
+function look(b){const h=hash(b.isbn||b.title);const p=b.color?[b.color,b.tcolor||'#fff']:PAL[h%PAL.length];
+  return {c:p[0],t:p[1],h:150+(h%5)*10,w:30+(hash(b.title)%4)*6}}
+function coverHTML(b){const L=look(b);
+  const src=b.cover||(b.isbn?`https://ndlsearch.ndl.go.jp/thumbnail/${b.isbn}.jpg`:'');
+  return `<div class="gen"><b>${esc(b.title)}</b><small>${esc(b.author)}</small></div>`+
+    (src?`<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()" onload="if(this.naturalWidth<10)this.remove()">`:'');}
+function faceHTML(b,fh){const L=look(b);return `<div class="face" style="--c:${L.c};--t:${L.t};--fh:${fh||L.h}px">${coverHTML(b)}</div>`}
+function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
+  const inner=b.mode==='face'?faceHTML(b,L.h+10):`<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px"><span class="ti">${esc(b.title)}</span><span class="au">${esc(b.author)}</span></div>`;
+  return `<div class="bk st-${b.status}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
+
+/* ---- 本棚 ---- */
+function renderShelf(){
+  $('#caseSel').innerHTML=S.cases.map(c=>`<option value="${c.id}" ${c.id===S.cur?'selected':''}>${esc(c.name)}</option>`).join('');
+  const c=curCase();
+  $('#case').innerHTML=c.shelves.map(s=>`<div class="shelf"><button class="sname" data-sid="${s.id}" title="段の名前を変更・削除">${esc(s.name)}</button>
+    <div class="row" data-shelf="${s.id}">${s.books.map(bookHTML).join('')||'<span class="empty">ここに本をドラッグ</span>'}</div><div class="board"></div></div>`).join('');
+  S.tray=S.tray.filter(id=>S.books[id]);
+  $('#tray').innerHTML=S.tray.map(bookHTML).join('')||'<span class="empty">ここに置いた本は本棚に並びません</span>';
+}
+const listOf=sid=>sid==='tray'?S.tray:S.cases.flatMap(c=>c.shelves).find(s=>s.id===sid)?.books;
+function removeEverywhere(id){S.tray=S.tray.filter(x=>x!==id);for(const c of S.cases)for(const s of c.shelves)s.books=s.books.filter(x=>x!==id)}
+function placeOf(id){if(S.tray.includes(id))return '未配置';for(const c of S.cases)for(const s of c.shelves)if(s.books.includes(id))return `${c.name} / ${s.name}`;return ''}
+
+/* ドラッグ：マウスはそのまま、タッチは長押し（約0.4秒）で持ち上げる */
+let D=null;
+function startDrag(x,y){D.on=true;const r=D.el.getBoundingClientRect();D.dx=x-r.left;D.dy=y-r.top;
+  D.g=D.el.cloneNode(true);D.g.classList.remove('lift');D.g.classList.add('ghost');document.body.append(D.g);
+  D.g.style.left=r.left+'px';D.g.style.top=r.top+'px';D.el.classList.add('dragging');document.body.classList.add('dragging');
+  D.m=document.createElement('div');D.m.className='mark'}
+function endDrag(){if(!D)return;clearTimeout(D.timer);D.el.classList.remove('lift','dragging');document.body.classList.remove('dragging');D.g?.remove();D.m?.remove()}
+document.addEventListener('pointerdown',e=>{
+  const bk=e.target.closest('#v-shelf .bk');if(!bk||e.button>0)return;
+  D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse'};
+  if(D.touch){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;bk.classList.add('lift');navigator.vibrate?.(12);startDrag(d.lx??d.x,d.ly??d.y)},400)}
+});
+document.addEventListener('touchmove',e=>{if(D?.on)e.preventDefault()},{passive:false});
+document.addEventListener('contextmenu',e=>{if(e.target.closest('.bk'))e.preventDefault()});
+document.addEventListener('pointermove',e=>{
+  if(!D)return;D.lx=e.clientX;D.ly=e.clientY;
+  if(!D.on){const mv=Math.hypot(e.clientX-D.x,e.clientY-D.y);
+    if(D.touch){if(mv>10){endDrag();D=null}return}
+    if(mv<6)return;startDrag(e.clientX,e.clientY)}
+  e.preventDefault();
+  D.g.style.left=e.clientX-D.dx+'px';D.g.style.top=e.clientY-D.dy+'px';
+  const row=document.elementFromPoint(e.clientX,e.clientY)?.closest('.row');
+  if(!row){D.m.remove();D.to=null}else{
+  const kids=[...row.querySelectorAll('.bk')].filter(k=>k!==D.el);
+  let i=kids.findIndex(k=>{const r=k.getBoundingClientRect();return e.clientX<r.left+r.width/2});
+  if(i<0)i=kids.length;
+  row.querySelector('.empty')?.setAttribute('hidden','');
+  if(i<kids.length)row.insertBefore(D.m,kids[i]);else row.append(D.m);
+  D.to={sid:row.dataset.shelf,ref:kids[i]?.dataset.id};
+  const rr=row.getBoundingClientRect();if(e.clientX>rr.right-30)row.scrollLeft+=10;if(e.clientX<rr.left+30)row.scrollLeft-=10}
+  if(e.clientY<60)scrollBy(0,-12);if(e.clientY>innerHeight-90)scrollBy(0,12);
+},{passive:false});
+document.addEventListener('pointerup',()=>{
+  if(!D)return;const d=D;endDrag();D=null;
+  if(!d.on){openBook(d.id);return}
+  if(d.to){removeEverywhere(d.id);const L=listOf(d.to.sid);const at=d.to.ref?L.indexOf(d.to.ref):L.length;L.splice(at<0?L.length:at,0,d.id);save()}
+  renderShelf();
+});
+document.addEventListener('pointercancel',()=>{if(!D)return;const on=D.on;endDrag();D=null;if(on)renderShelf()});
+document.addEventListener('keydown',e=>{const bk=e.target.closest?.('.bk');if(bk&&e.key==='Enter')openBook(bk.dataset.id);if(e.key==='Escape')closePanel()});
+
+$('#caseSel').onchange=e=>{S.cur=e.target.value;save();renderShelf()};
+$('#caseNew').onclick=()=>ask('新しい本棚の名前','寝室の本棚',v=>{const c={id:uid(),name:v,shelves:[1,2,3].map(n=>({id:uid(),name:n+'段目',books:[]}))};S.cases.push(c);S.cur=c.id;save();renderShelf()});
+$('#caseRen').onclick=()=>ask('本棚の名前',curCase().name,v=>{curCase().name=v;save();renderShelf()});
+$('#shelfNew').onclick=()=>{const c=curCase();c.shelves.push({id:uid(),name:(c.shelves.length+1)+'段目',books:[]});save();renderShelf()};
+$('#caseDel').onclick=()=>{if(S.cases.length<2)return toast('本棚は最低1つ必要です');const c=curCase();
+  confirmP(`「${c.name}」を削除します。並んでいた本は「未配置」に移ります。`,()=>{for(const s of c.shelves)S.tray.push(...s.books);S.cases=S.cases.filter(x=>x!==c);S.cur=S.cases[0].id;save();renderShelf()})};
+$('#case').addEventListener('click',e=>{const b=e.target.closest('.sname');if(!b)return;const c=curCase();const s=c.shelves.find(x=>x.id===b.dataset.sid);
+  openPanel(`<button class="x" data-close>閉じる</button><h2>段の設定</h2><div class="fld"><label>段の名前</label><input id="sn" value="${esc(s.name)}"></div>
+  <div class="btns"><button class="pri" id="snOk">保存</button><button id="snDel">この段を削除</button></div><p class="msg">削除すると、この段の本は「未配置」に移ります。</p>`);
+  $('#snOk').onclick=()=>{s.name=$('#sn').value.trim()||s.name;save();renderShelf();closePanel()};
+  $('#snDel').onclick=()=>{if(c.shelves.length<2)return toast('段は最低1つ必要です');S.tray.push(...s.books);c.shelves=c.shelves.filter(x=>x!==s);save();renderShelf();closePanel()};
+});
+
+/* ---- パネル共通 ---- */
+const panel=$('#panel');
+const coarse=matchMedia('(pointer:coarse)').matches;
+function openPanel(h){stopScan();panel.innerHTML=h;panel.classList.add('open');if(!coarse)panel.querySelector('input,button.pri')?.focus()}
+function closePanel(){stopScan();panel.classList.remove('open')}
+panel.addEventListener('click',e=>{if(e.target.closest('[data-close]'))closePanel()});
+function ask(label,val,cb){openPanel(`<button class="x" data-close>閉じる</button><h2>${esc(label)}</h2><div class="fld"><input id="askv" value="${esc(val)}"></div><div class="btns"><button class="pri" id="askOk">決定</button></div>`);
+  const go=()=>{const v=$('#askv').value.trim();if(v){cb(v);closePanel()}};$('#askOk').onclick=go;$('#askv').onkeydown=e=>{if(e.key==='Enter')go()}}
+function confirmP(t,cb){openPanel(`<button class="x" data-close>閉じる</button><h2>確認</h2><p>${esc(t)}</p><div class="btns"><button class="pri" id="cfOk">実行する</button><button data-close>やめる</button></div>`);$('#cfOk').onclick=()=>{cb();closePanel()}}
+
+/* ---- 本の詳細・編集 ---- */
+function form(b){return `
+  <div class="prev">${faceHTML(b,150)}<div><button id="imgBtn">表紙画像を選ぶ</button><p class="msg">見つからない時は写真やスキャン画像を使えます</p></div></div>
+  <div class="fld"><label>タイトル</label><input id="f-title" value="${esc(b.title)}"></div>
+  <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
+  <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
+  <div class="two"><div class="fld"><label>状態</label><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
+  <div class="fld"><label>本棚での見せ方</label><select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
+  <div class="two"><div class="fld"><label>背表紙の色</label><input type="color" id="f-color" value="${look(b).c}" style="height:42px;padding:2px"></div><div class="fld"><label>文字の色</label><input type="color" id="f-tcolor" value="${look(b).t}" style="height:42px;padding:2px"></div></div>
+  <div class="fld"><label>メモ</label><textarea id="f-memo" rows="3">${esc(b.memo)}</textarea></div>`}
+function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo'])b[k]=$('#f-'+k).value.trim();
+  const c=$('#f-color').value,t=$('#f-tcolor').value;const L0=look({...b,color:null});if(b.color||c!==L0.c||t!==L0.t){b.color=c;b.tcolor=t}b.isbn=normIsbn(b.isbn)||b.isbn}
+function bindImg(b){$('#imgBtn').onclick=()=>{const inp=$('#imgIn');inp.value='';inp.onchange=()=>{const f=inp.files[0];if(!f)return;shrink(f).then(u=>{b.cover=u;$('.prev .face').outerHTML=faceHTML(b,150)})};inp.click()}}
+function shrink(f){return new Promise(r=>{const img=new Image();img.onload=()=>{const k=Math.min(1,360/img.width);const c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',.82))};img.src=URL.createObjectURL(f)})}
+
+function openBook(id){const b=S.books[id];if(!b)return;const tmp={...b};
+  openPanel(`<button class="x" data-close>閉じる</button><h2>${esc(b.title)}</h2><p class="msg">場所：${esc(placeOf(id))}</p>${form(tmp)}
+   <div class="btns"><button class="pri" id="bSave">保存</button><button id="bDel">削除</button></div>`);
+  bindImg(tmp);
+  $('#bSave').onclick=()=>{readForm(tmp);Object.assign(b,tmp);save();renderAll();closePanel();toast('保存しました')};
+  $('#bDel').onclick=()=>confirmP(`「${b.title}」を蔵書から削除します。`,()=>{removeEverywhere(id);delete S.books[id];save();renderAll()});
+}
+
+/* ---- 追加：ISBN検索 ---- */
+function normIsbn(s){s=String(s||'').replace(/[^0-9Xx]/g,'').toUpperCase();
+  if(s.length===10){const b='978'+s.slice(0,9);let t=0;for(let i=0;i<12;i++)t+=+b[i]*(i%2?3:1);return b+((10-t%10)%10)}
+  return s.length===13?s:''}
+async function lookup(isbn){
+  try{const r=await fetch('https://api.openbd.jp/v1/get?isbn='+isbn);const j=await r.json();const s=j?.[0]?.summary;
+    if(s)return {title:[s.title,s.volume].filter(Boolean).join(' '),author:(s.author||'').replace(/／著|\/著|著$/g,'').replace(/[,／]/g,'・'),publisher:s.publisher||'',pubdate:fmtDate(s.pubdate),cover:s.cover||'',src:'openBD'}}catch(e){}
+  try{const r=await fetch('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn);const j=await r.json();const v=j.items?.[0]?.volumeInfo;
+    if(v)return {title:[v.title,v.subtitle].filter(Boolean).join(' '),author:(v.authors||[]).join('・'),publisher:v.publisher||'',pubdate:v.publishedDate||'',cover:(v.imageLinks?.thumbnail||'').replace('http:','https:'),src:'Google Books'}}catch(e){}
+  return null}
+const fmtDate=d=>{d=String(d||'');return d.length===8?`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`:d.length===6?`${d.slice(0,4)}-${d.slice(4)}`:d};
+function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...pre};
+  openPanel(`<button class="x" data-close>閉じる</button><h2>本を追加</h2>
+   <button class="pri" id="scanBtn" style="width:100%;min-height:52px">カメラでバーコードを読み取る</button>
+   <div class="scan" id="scanBox" hidden></div>
+   <div class="fld" style="margin-top:10px"><label>またはISBN（10桁/13桁、ハイフン可）を入力</label><div style="display:flex;gap:8px"><input id="isbn" inputmode="numeric" placeholder="978-4-..." value="${esc(b.isbn)}"><button id="look">検索</button></div></div>
+   <p class="msg" id="lmsg">openBD → Google Books の順に探します。見つからなければ下に手入力してください。</p>
+   <div id="fwrap">${form(b)}</div>
+   <div class="fld"><label>置き場所</label><select id="where"><option value="tray">未配置</option>${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
+   <div class="btns"><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
+  bindImg(b);
+  const go=async()=>{const isbn=normIsbn($('#isbn').value);const m=$('#lmsg');m.className='msg';
+    if(!isbn){m.textContent='ISBNの桁数が正しくありません';m.classList.add('err');return}
+    const dup=Object.values(S.books).find(x=>x.isbn===isbn);if(dup){m.textContent=`この本は登録済みです（${placeOf(dup.id)}）`;m.classList.add('err')}
+    else m.textContent='検索中…';
+    const r=await lookup(isbn);readForm(b);b.isbn=isbn;
+    if(r){Object.assign(b,r);delete b.src;if(!dup)m.textContent=`${r.src} で見つかりました。内容を確認して追加してください。`}
+    else{m.textContent='見つかりませんでした（またはこの環境では外部APIに接続できません）。手入力してください。';m.classList.add('err')}
+    $('#fwrap').innerHTML=form(b);bindImg(b)};
+  $('#scanBtn').onclick=()=>{$('#lmsg').className='msg';$('#lmsg').textContent='本の裏表紙の「978」で始まるバーコードを枠に入れてください';scan(code=>{$('#isbn').value=code;go()})};
+  if(pre?.autoscan)$('#scanBtn').click();
+  $('#look').onclick=go;$('#isbn').onkeydown=e=>{if(e.key==='Enter')go()};
+  const save1=()=>{readForm(b);if(!b.title){toast('タイトルを入れてください');return false}
+    S.books[b.id]=b;const w=$('#where').value;listOf(w).push(b.id);S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(`「${b.title}」を追加しました`);return true};
+  $('#aSave').onclick=save1;
+  $('#aNext').onclick=()=>{if(save1())setTimeout(()=>addBook({autoscan:true}),300)};
+  if(S.lastWhere&&listOf(S.lastWhere))$('#where').value=S.lastWhere;
+}
+/* バーコード読み取り（html5-qrcode を同梱。対応端末ではOS標準の検出器を使う） */
+let QR=null,scanning=false;
+function loadLib(){return new Promise((ok,ng)=>{if(window.__Html5QrcodeLibrary__)return ok();
+  const add=(src,next)=>{const sc=document.createElement('script');sc.src=src;sc.onload=ok;sc.onerror=next;document.head.append(sc)};
+  add('lib/html5-qrcode.min.js',()=>add('https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js',ng))})}
+async function stopScan(){scanning=false;const q=QR;QR=null;try{await q?.stop();q?.clear()}catch(e){}const bx=$('#scanBox');if(bx)bx.hidden=true}
+async function scan(onCode){const box=$('#scanBox');if(QR)return stopScan();box.hidden=false;$('#scanBtn').textContent='読み取りをやめる';
+  try{await loadLib();const L=window.__Html5QrcodeLibrary__;
+    QR=new L.Html5Qrcode('scanBox',{formatsToSupport:[L.Html5QrcodeSupportedFormats.EAN_13],verbose:false,experimentalFeatures:{useBarCodeDetectorIfSupported:true}});scanning=true;
+    await QR.start({facingMode:'environment'},{fps:12,qrbox:(w,h)=>({width:Math.floor(w*.86),height:Math.floor(Math.min(w,h)*.42)})},
+      txt=>{if(!scanning||!/^97[89]\d{10}$/.test(txt))return;scanning=false;navigator.vibrate?.(40);stopScan().then(()=>{const sb=$('#scanBtn');if(sb)sb.textContent='カメラでバーコードを読み取る';onCode(txt)})})}
+  catch(e){await stopScan();$('#scanBtn').textContent='カメラでバーコードを読み取る';const m=$('#lmsg');m.textContent='カメラを起動できませんでした。https のページで開いているか、カメラの許可を確認してください。';m.className='msg err'}}
+$('#addBtn').onclick=()=>addBook();
+
+/* ---- 一覧 ---- */
+function renderList(){const q=$('#q').value.trim().toLowerCase(),st=$('#fst').value,so=$('#sort').value;
+  let a=Object.values(S.books).filter(b=>(!st||b.status===st)&&(!q||[b.title,b.author,b.publisher,b.isbn].join(' ').toLowerCase().includes(q)));
+  const cmp={added:(x,y)=>y.added-x.added,title:(x,y)=>x.title.localeCompare(y.title,'ja'),author:(x,y)=>x.author.localeCompare(y.author,'ja'),pub:(x,y)=>String(y.pubdate).localeCompare(String(x.pubdate))}[so];
+  a.sort(cmp);
+  $('#count').textContent=`${a.length}冊 / 全${Object.keys(S.books).length}冊`+(S.sample?'（いまはサンプルの蔵書です。データ→「空にする」で消せます）':'');
+  $('#grid').innerHTML=a.map(b=>`<button class="card" data-id="${b.id}">${faceHTML(b,170)}<span class="t">${esc(b.title)}</span><span class="a">${esc(b.author)}・${ST[b.status]||''}</span></button>`).join('')||'<p class="note">該当する本がありません</p>'}
+$('#grid').onclick=e=>{const c=e.target.closest('.card');if(c)openBook(c.dataset.id)};
+for(const id of ['#q','#fst','#sort'])$(id).addEventListener('input',renderList);
+
+/* ---- 新刊チェック ---- */
+function renderFollows(){
+  $('#follows').innerHTML=S.follows.map((f,i)=>`<span class="chip" style="border:1px solid var(--line)"><span>${f.type==='author'?'著者':'シリーズ'}：${esc(f.q)}</span><button class="x" style="float:none;min-height:30px;padding:0 8px" data-rm="${i}" aria-label="${esc(f.q)}のフォローを外す">×</button></span>`).join('')||'<span class="note">まだ何もフォローしていません</span>';
+  const counts={};for(const b of Object.values(S.books))for(const a of String(b.author).split('・'))if(a)counts[a]=(counts[a]||0)+1;
+  const sug=Object.entries(counts).filter(([a])=>!S.follows.some(f=>f.q===a)).sort((x,y)=>y[1]-x[1]).slice(0,6);
+  $('#sugg').innerHTML=sug.length?'蔵書から候補：'+sug.map(([a,n])=>`<button class="chip" data-sug="${esc(a)}" style="margin:2px">${esc(a)} <i>${n}冊</i></button>`).join(''):''}
+$('#follows').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){S.follows.splice(+b.dataset.rm,1);save();renderFollows()}};
+$('#sugg').onclick=e=>{const b=e.target.closest('[data-sug]');if(b){S.follows.push({q:b.dataset.sug,type:'author'});save();renderFollows()}};
+$('#fadd').onclick=()=>{const q=$('#fq').value.trim();if(!q)return;S.follows.push({q,type:$('#ft').value});$('#fq').value='';save();renderFollows()};
+$('#fq').onkeydown=e=>{if(e.key==='Enter')$('#fadd').click()};
+$('#fcheck').onclick=async()=>{const m=$('#nmsg');m.className='msg';if(!S.follows.length){m.textContent='先に著者かシリーズをフォローしてください';return}
+  m.textContent='確認中…';$('#news').innerHTML='';
+  const since=new Date(Date.now()-90*864e5).toISOString().slice(0,10);const owned=new Set(Object.values(S.books).map(b=>b.isbn));
+  const seen=new Set();const out=[];let fail=0;
+  for(const f of S.follows){
+    try{const q=(f.type==='author'?'inauthor:':'intitle:')+`"${f.q}"`;
+      const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&orderBy=newest&maxResults=20&printType=books&langRestrict=ja`);
+      if(!r.ok)throw 0;const j=await r.json();
+      for(const it of j.items||[]){const v=it.volumeInfo;const isbn=(v.industryIdentifiers||[]).find(x=>x.type==='ISBN_13')?.identifier||'';
+        const d=v.publishedDate||'';if(d<since||seen.has(isbn||it.id))continue;seen.add(isbn||it.id);
+        out.push({f:f.q,isbn,title:[v.title,v.subtitle].filter(Boolean).join(' '),author:(v.authors||[]).join('・'),publisher:v.publisher||'',pubdate:d,cover:(v.imageLinks?.thumbnail||'').replace('http:','https:')})}
+    }catch(e){fail++}}
+  out.sort((a,b)=>b.pubdate.localeCompare(a.pubdate));const today=new Date().toISOString().slice(0,10);
+  m.textContent=fail===S.follows.length?'新刊情報に接続できませんでした（ネット接続か、この環境で外部APIが使えない可能性があります）':`${out.length}件見つかりました（${since}以降）`;
+  if(fail===S.follows.length)m.classList.add('err');
+  $('#news').innerHTML=out.map((n,i)=>`<div class="rel">${faceHTML(n,100)}<div><b>${esc(n.title)}</b>${n.pubdate>today?'<span class="badge">発売予定</span>':''}${owned.has(n.isbn)?'<span class="badge own">所持</span>':''}
+    <div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}　フォロー：${esc(n.f)}</div></div>
+    ${owned.has(n.isbn)?'':`<button data-n="${i}">追加</button>`}</div>`).join('');
+  $('#news').onclick=e=>{const b=e.target.closest('[data-n]');if(!b)return;const n=out[+b.dataset.n];const{f,...rest}=n;addBook({...rest,status:n.pubdate>today?'wish':'unread'})};
+};
+
+/* ---- データ入出力 ---- */
+$('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</button><h2>データ</h2>
+  <p class="msg">蔵書はこのブラウザの中（localStorage）に保存されています。別の端末へ移す時やバックアップには書き出しを使ってください。</p>
+  <div class="btns"><button class="pri" id="ex">ファイルに書き出す</button><button id="cp">JSONをコピー</button><button id="im">ファイルから読み込む</button><button id="clr">空にする</button></div>`);
+  const json=()=>JSON.stringify(S,null,1);
+  $('#ex').onclick=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json()],{type:'application/json'}));a.download='hondana-'+new Date().toISOString().slice(0,10)+'.json';a.click()}catch(e){toast('書き出しできない環境です。コピーを使ってください')}};
+  $('#cp').onclick=()=>navigator.clipboard.writeText(json()).then(()=>toast('コピーしました'),()=>toast('コピーできませんでした'));
+  $('#im').onclick=()=>{const i=$('#jsonIn');i.value='';i.onchange=async()=>{try{const d=JSON.parse(await i.files[0].text());if(!d.cases||!d.books)throw 0;S=d;save();renderAll();closePanel();toast('読み込みました')}catch(e){toast('読み込めないファイルです')}};i.click()};
+  $('#clr').onclick=()=>confirmP('すべての本と本棚を消して空にします。',()=>{S={books:{},tray:[],follows:[],cases:[{id:uid(),name:'わたしの本棚',shelves:[1,2,3].map(n=>({id:uid(),name:n+'段目',books:[]}))}]};S.cur=S.cases[0].id;save();renderAll()});
+};
+
+/* ---- 画面切替 ---- */
+function renderAll(){renderShelf();renderList();renderFollows()}
+function show(v){for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
+  for(const s of ['shelf','list','news'])$('#v-'+s).hidden=s!==v;if(location.hash!=='#'+v)history.replaceState(null,'','#'+v)}
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
+addEventListener('hashchange',()=>show(location.hash.slice(1)||'shelf'));
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+renderAll();show(['shelf','list','news'].includes(location.hash.slice(1))?location.hash.slice(1):'shelf');
+}
+</script>
+</body>
+</html>
