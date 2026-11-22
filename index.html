@@ -111,7 +111,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .badge.own{background:var(--ok)}
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
-.lockshelf h3 .note{font-weight:400;font-size:12px;margin:0 0 0 6px}.row.locked .bk{cursor:pointer}.row.locked .bk:hover{transform:none}
+.lockshelf h3 .note{font-weight:400;font-size:12px;margin:0 0 0 6px}
 #readGather button,#tsunGather button{margin:0 0 6px;font-size:13px}
 #updBar{position:fixed;left:50%;translate:-50%;bottom:calc(84px + env(safe-area-inset-bottom));z-index:45;display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 10px 8px 14px;box-shadow:0 8px 24px #0004;white-space:nowrap}#updBar[hidden]{display:none}
 .help h3{font-size:16px;margin:18px 0 6px}.help ul{margin:0;padding-left:1.2em}.help li{margin:0 0 8px;line-height:1.6;font-size:15px}
@@ -302,7 +302,7 @@ function renderShelf(){renderSampleBar();renderSerDrag();
   $('#tray').innerHTML=S.tray.map(bookHTML).join('')||'<span class="empty">ここに置いた本は本棚に並びません</span>';
   for(const [k,st,row,nEl,gEl,lab,emp] of [['reading','reading','#readRow','#readN','#readGather','読書中','「読書中」にした本がここに入ります'],['tsun','unread','#tsunRow','#tsunN','#tsunGather','積読','「積読」にした本が登録順にここに入ります']]){
     const L=listOf(k);for(const id of [...L]){const b=S.books[id];if(!b||b.status!==st){L.splice(L.indexOf(id),1);if(b&&!placeOf(id))S.tray.push(id)}}L.sort(byAdded);
-    $(row).innerHTML=L.map(bookHTML).join('')||`<span class="empty">${emp}</span>`;$(nEl).textContent=L.length?`${L.length}冊・読了にすると「未配置」に移ります`:'';
+    $(row).innerHTML=L.map(bookHTML).join('')||`<span class="empty">${emp}</span>`;$(nEl).textContent=L.length?`${L.length}冊`:'';
     const out=Object.values(S.books).filter(b=>b.status===st&&!L.includes(b.id));
     $(gEl).innerHTML=out.length?`<button data-gather="${k}">ほかの場所にある${lab}の本（${out.length}冊）もここに集める</button>`:''}
 }
@@ -453,19 +453,18 @@ addEventListener('hashchange',openViewer);
 function sameShelfSeries(id){const b=S.books[id];if(!b||!volOf(b))return null;const k=skey(b);
   const sid=[...S.cases.flatMap(c=>c.shelves.map(x=>x.id)),'tray'].find(x=>listOf(x).includes(id));if(!sid)return null;
   const L=listOf(sid).filter(x=>S.books[x]&&skey(S.books[x])===k);return L.length>1?L:null}
-let lockAt=0;function lockMsg(){if(Date.now()-lockAt<1500)return;lockAt=Date.now();toast('積読・読書中の本は、読了にすると動かせます')}
 /* ドラッグ：マウスはそのまま、タッチは長押し（約0.4秒）で持ち上げる */
 let D=null;
 function startDrag(x,y){D.on=true;const r=D.el.getBoundingClientRect();D.dx=x-r.left;D.dy=y-r.top;
-  D.group=SEL.has(D.id)&&SEL.size>1?[...SEL]:(!SELMODE&&S.serDrag!==false)?sameShelfSeries(D.id):null;if(D.group)D.group=D.group.filter(x=>!isLocked(x)||x===D.id);D.gs=new Set(D.group||[]);
+  D.group=SEL.has(D.id)&&SEL.size>1?[...SEL]:(!SELMODE&&S.serDrag!==false)?sameShelfSeries(D.id):null;D.gs=new Set(D.group||[]);
   D.g=D.el.cloneNode(true);D.g.classList.remove('lift','sel');D.g.classList.add('ghost');if(D.group){D.g.insertAdjacentHTML('beforeend',`<span class="cnt">${D.group.length}冊</span>`);for(const el of document.querySelectorAll('#v-shelf .bk'))if(D.gs.has(el.dataset.id))el.classList.add('dragging')}document.body.append(D.g);
   D.g.style.left=r.left+'px';D.g.style.top=r.top+'px';D.el.classList.add('dragging');document.body.classList.add('dragging');
   D.m=document.createElement('div');D.m.className='mark'}
 function endDrag(){if(!D)return;clearTimeout(D.timer);D.el.classList.remove('lift','dragging');for(const el of document.querySelectorAll('#v-shelf .bk.dragging'))el.classList.remove('dragging');document.body.classList.remove('dragging');D.g?.remove();D.m?.remove()}
 document.addEventListener('pointerdown',e=>{
   const bk=e.target.closest('#v-shelf .bk');if(!bk||e.button>0)return;
-  D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse',lock:!!bk.closest('.row.locked')};
-  if(D.touch){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;if(d.lock){d.lockShown=true;lockMsg();return}bk.classList.add('lift');navigator.vibrate?.(12);startDrag(d.lx??d.x,d.ly??d.y)},400)}
+  D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse'};
+  if(D.touch){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;bk.classList.add('lift');navigator.vibrate?.(12);startDrag(d.lx??d.x,d.ly??d.y)},400)}
 });
 document.addEventListener('touchmove',e=>{if(D?.on)e.preventDefault()},{passive:false});
 document.addEventListener('contextmenu',e=>{if(e.target.closest('.bk'))e.preventDefault()});
@@ -473,10 +472,10 @@ document.addEventListener('pointermove',e=>{
   if(!D)return;D.lx=e.clientX;D.ly=e.clientY;
   if(!D.on){const mv=Math.hypot(e.clientX-D.x,e.clientY-D.y);
     if(D.touch){if(mv>10){endDrag();D=null}return}
-    if(mv<6)return;if(D.lock){lockMsg();D=null;return}startDrag(e.clientX,e.clientY)}
+    if(mv<6)return;startDrag(e.clientX,e.clientY)}
   e.preventDefault();
   D.g.style.left=e.clientX-D.dx+'px';D.g.style.top=e.clientY-D.dy+'px';
-  let row=document.elementFromPoint(e.clientX,e.clientY)?.closest('.row');if(row?.classList.contains('locked'))row=null;
+  let row=document.elementFromPoint(e.clientX,e.clientY)?.closest('.row');
   if(!row){D.m.remove();D.to=null}else{
   const kids=[...row.querySelectorAll('.bk')].filter(k=>k!==D.el&&!D.gs.has(k.dataset.id));
   let i=kids.findIndex(k=>{const r=k.getBoundingClientRect();return e.clientX<r.left+r.width/2});
@@ -489,8 +488,12 @@ document.addEventListener('pointermove',e=>{
 },{passive:false});
 document.addEventListener('pointerup',()=>{
   if(!D)return;const d=D;endDrag();D=null;
-  if(!d.on){if(d.lockShown)return;if(SELMODE){SEL.has(d.id)?SEL.delete(d.id):SEL.add(d.id);renderSel()}else openBook(d.id);return}
-  if(d.to){const ids=d.group?d.group.sort(byVol):[d.id];for(const id of ids)removeEverywhere(id);const L=listOf(d.to.sid);const at=d.to.ref?L.indexOf(d.to.ref):L.length;L.splice(at<0?L.length:at,0,...ids);save();if(d.group)toast(`${ids.length}冊を巻数順に移動しました`)}
+  if(!d.on){if(SELMODE){SEL.has(d.id)?SEL.delete(d.id):SEL.add(d.id);renderSel()}else openBook(d.id);return}
+  if(d.to){const ids=d.group?d.group.sort(byVol):[d.id];const was=new Set(ids.filter(isLocked));for(const id of ids)removeEverywhere(id);const L=listOf(d.to.sid);const at=d.to.ref?L.indexOf(d.to.ref):L.length;L.splice(at<0?L.length:at,0,...ids);
+    // 置いた棚で状態も変える：積読の棚→積読、読書中の棚→読書中、積読・読書中の棚から外へ出したら読了
+    const to={tsun:'unread',reading:'reading'}[d.to.sid];let ch=0;for(const id of ids){const b=S.books[id];const ns=to||(was.has(id)?'done':b.status);if(b.status!==ns){b.status=ns;ch++}}
+    if(to)L.sort(byAdded);save();
+    const msg=ch?`${ids.length>1?ids.length+'冊を':''}「${ST[to||'done']}」にしました`:d.group?`${ids.length}冊を巻数順に移動しました`:'';if(msg)toast(msg)}
   renderShelf();
 });
 document.addEventListener('pointercancel',()=>{if(!D)return;const on=D.on;endDrag();D=null;if(on)renderShelf()});
@@ -779,7 +782,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>同じ段にある同じシリーズは、まとめて巻数順に動きます。1冊だけ動かしたいときは「シリーズまとめて動かす」をオフにします。</li>
   <li>「まとめて選ぶ」で本をタップして選ぶと、まとめて動かしたり、巻数順に並べたり、色を変えたりできます。</li>
   <li>本をタップすると詳細が開きます。「表紙を見せて飾る」にすると表紙が見える置き方になります。背表紙の色もここで変えられます（同じシリーズにまとめて使えます）。</li>
-  <li>「読書中」「積読」にした本は、未配置の下にあるそれぞれの棚へ自動で入ります（積読は登録順）。読了にするまでは動かせません。読了にすると「未配置」に移るので、そこから好きな場所へ並べてください。</li>
+  <li>「読書中」「積読」にした本は、未配置の下にあるそれぞれの棚へ自動で入ります（積読は登録順）。読了にすると「未配置」に移ります。逆に、本をドラッグで積読・読書中の棚へ入れるとその状態に、そこから本棚や未配置へ出すと「読了」になります。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>新刊チェック</h3><ul>
   <li>本棚にある本のシリーズと著者から、新しく出た本と発売予定の本を自動で探します。</li>
@@ -811,7 +814,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v26';let updAt=0;
+const APP_V='hondana-v27';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
