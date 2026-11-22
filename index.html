@@ -244,7 +244,7 @@ const z2h=t=>String(t||'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCod
 const VOL_RE=/[\s　]*(?:[（(［\[]\s*)?(?:第|巻|vol\.?|Vol\.?|VOL\.?|#)?\s*(\d{1,4}|上|中|下)\s*(?:巻|集|号)?\s*(?:[)）］\]])?\s*$/;
 function volOf(b){if(b.vol!==undefined&&b.vol!=='')return parseFloat(z2h(b.vol))||0;const m=z2h(b.title).match(VOL_RE);if(!m)return 0;return {上:1,中:2,下:3}[m[1]]||parseInt(m[1])}
 // 「葬送のフリーレン = FRIEREN.」のような併記タイトルを外す
-const cleanTitle=t=>String(t||'').replace(/\s+[=＝]\s.*$/,'').trim();
+const cleanTitle=t=>String(t||'').replace(/\s+[=＝]\s.*$/,m=>{const v=z2h(m).match(VOL_RE);return v?' '+v[0].trim():''}).trim();
 function seriesOf(b){if(b.series)return b.series.trim();const t=cleanTitle(z2h(b.title));const m=t.match(VOL_RE);return (m?t.slice(0,m.index):t).replace(/[\s　.,:：・-]+$/,'').trim()}
 const byVol=(a,b)=>seriesOf(S.books[a]).localeCompare(seriesOf(S.books[b]),'ja')||volOf(S.books[a])-volOf(S.books[b]);
 /* ---- 本の見た目 ---- */
