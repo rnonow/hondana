@@ -171,6 +171,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <p class="note">本を長押し（パソコンはドラッグ）すると持ち上がり、好きな段・位置へ動かせます。タップで詳細を開き「表紙を見せて飾る」にすると面陳になります。</p>
     <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button>
       <p class="note" style="flex-basis:100%;margin:0">本をタップして選び、選んだ本のどれかを長押し（パソコンはドラッグ）すると、まとめて動かせます。</p></div>
+    <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
+    <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。右上の「＋ 本を追加」から、バーコードやキーワードで登録できます。</p>
     <div class="case" id="case"></div>
     <div class="tray">
       <h3>未配置の本</h3>
@@ -219,21 +221,15 @@ const hash=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;retur
 const PAL=[['#2d4a6b','#f1e9da'],['#7d2a2a','#f6e7d7'],['#e5c76b','#2a2420'],['#3d6b4f','#f2efe6'],['#ddd5c4','#2c2a26'],['#1f1f22','#e9c46a'],['#b4532a','#fff3e4'],['#5b4b8a','#f3eefc'],['#8fb3c9','#1c2a33'],['#c98b8b','#2b1d1d'],['#f2f0ea','#b4532a'],['#2a6f73','#fbefd9']];
 const ST={unread:'積読',reading:'読書中',done:'読了',wish:'欲しい'};
 
-function sample(){
-  const B=[
-    ['9784101010137','こころ','夏目漱石','新潮社','2004'],['9784101010014','吾輩は猫である','夏目漱石','新潮社','2003'],
-    ['9784062748681','ノルウェイの森 上','村上春樹','講談社','2004'],['9784101215235','博士の愛した数式','小川洋子','新潮社','2005'],
-    ['9784591153321','かがみの孤城','辻村深月','ポプラ社','2017'],['9784893095626','りんごかもしれない','ヨシタケシンスケ','ブロンズ新社','2013'],
-    ['9784167911300','コンビニ人間','村田沙耶香','文藝春秋','2018'],['9784101092058','新編 銀河鉄道の夜','宮沢賢治','新潮社','1989'],
-    ['9784167910105','羊と鋼の森','宮下奈都','文藝春秋','2018'],['9784101369181','火車','宮部みゆき','新潮社','1998'],
-    ['9784102122044','星の王子さま','サン＝テグジュペリ','新潮社','2006'],['9784101006055','人間失格','太宰治','新潮社','2006']];
-  const books={};const ids=B.map(([isbn,title,author,publisher,pubdate],i)=>{const id=uid();books[id]={id,isbn,title,author,publisher,pubdate,status:['done','unread','reading','done'][i%4],mode:(i===4||i===5)?'face':'spine',memo:'',added:Date.now()-i*864e5,cover:''};return id});
-  return {books,tray:[],follows:[],
-    cases:[{id:uid(),name:'リビングの本棚',shelves:[{id:uid(),name:'上段',books:ids.slice(0,6)},{id:uid(),name:'中段',books:ids.slice(6,10)},{id:uid(),name:'下段',books:ids.slice(10)}]}],cur:null,sample:true};
-}
+/* 初回は空の本棚から始める */
+const emptyState=()=>{const c={id:uid(),name:'わたしの本棚',shelves:['上段','中段','下段'].map(n=>({id:uid(),name:n,books:[]}))};return {books:{},tray:[],follows:[],cases:[c],cur:c.id}};
+// 以前の版で最初から入っていたサンプルの本（ISBNと書名が両方一致するものだけを対象にする）
+const SAMPLE_KEYS=new Set(['9784101010137:こころ','9784101010014:吾輩は猫である','9784062748681:ノルウェイの森 上','9784101215235:博士の愛した数式','9784591153321:かがみの孤城','9784893095626:りんごかもしれない','9784167911300:コンビニ人間','9784101092058:新編 銀河鉄道の夜','9784167910105:羊と鋼の森','9784101369181:火車','9784102122044:星の王子さま','9784101006055:人間失格']);
+const sampleBooks=()=>Object.values(S.books).filter(b=>SAMPLE_KEYS.has(b.isbn+':'+b.title));
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-if(!S||!S.cases||(S.sample&&Object.values(S.books).every(b=>!b.isbn))){S=sample();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+// 自分では1冊も登録していない（サンプルのまま）なら空の本棚にする
+if(!S||!S.cases||S.sample===true){S=emptyState();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 if(!S.cur||!S.cases.find(c=>c.id===S.cur))S.cur=S.cases[0].id;
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('この環境では保存できません')}};
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)};
@@ -269,7 +265,8 @@ function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
   return `<div class="bk st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
 
 /* ---- 本棚 ---- */
-function renderShelf(){
+function renderSampleBar(){const L=S.sampleKeep?[]:sampleBooks();$('#sampleBar').hidden=!L.length;$('#sampleTxt').textContent=`最初から入っていたサンプルの本が${L.length}冊残っています。`;$('#emptyNote').hidden=Object.keys(S.books).length>0}
+function renderShelf(){renderSampleBar();
   $('#caseSel').innerHTML=S.cases.map(c=>`<option value="${c.id}" ${c.id===S.cur?'selected':''}>${esc(c.name)}</option>`).join('');
   const c=curCase();
   $('#case').innerHTML=c.shelves.map(s=>`<div class="shelf"><button class="sname" data-sid="${s.id}" title="段の名前を変更・削除">${esc(s.name)}</button>
@@ -285,6 +282,8 @@ function placeOf(id){if(S.tray.includes(id))return '未配置';for(const c of S.
 let SELMODE=false;const SEL=new Set();
 function renderSel(){$('#selbar').hidden=!SELMODE;$('#selMode').setAttribute('aria-pressed',SELMODE);$('#selN').textContent=SEL.size+'冊選択中';
   for(const el of document.querySelectorAll('#v-shelf .bk'))el.classList.toggle('sel',SEL.has(el.dataset.id))}
+$('#sampleKeep').onclick=()=>{S.sampleKeep=true;save();renderSampleBar()};
+$('#sampleDel').onclick=()=>{const L=sampleBooks();confirmP(`次の${L.length}冊を消します。自分で登録した本は消えません。\n${L.map(b=>'・'+b.title).join(' ')}`,()=>{for(const b of L){removeEverywhere(b.id);delete S.books[b.id]}save();renderAll();toast(`サンプルの本を${L.length}冊消しました`)})};
 $('#selMode').onclick=()=>{SELMODE=!SELMODE;if(!SELMODE)SEL.clear();renderSel()};
 $('#selClr').onclick=()=>{SEL.clear();SELMODE=false;renderSel()};
 $('#selColor').onclick=()=>{if(!SEL.size)return toast('先に本を選んでください');const f=S.books[[...SEL][0]];const L=look(f);
@@ -560,7 +559,7 @@ function renderList(){const q=$('#q').value.trim().toLowerCase(),st=$('#fst').va
   let a=Object.values(S.books).filter(b=>(!st||b.status===st)&&(!q||[b.title,b.author,b.publisher,b.isbn].join(' ').toLowerCase().includes(q)));
   const cmp={added:(x,y)=>y.added-x.added,title:(x,y)=>x.title.localeCompare(y.title,'ja'),author:(x,y)=>x.author.localeCompare(y.author,'ja'),pub:(x,y)=>String(y.pubdate).localeCompare(String(x.pubdate))}[so];
   a.sort(cmp);
-  $('#count').textContent=`${a.length}冊 / 全${Object.keys(S.books).length}冊`+(S.sample?'（いまはサンプルの蔵書です。データ→「空にする」で消せます）':'');
+  $('#count').textContent=`${a.length}冊 / 全${Object.keys(S.books).length}冊`;
   $('#grid').innerHTML=a.map(b=>`<button class="card" data-id="${b.id}">${faceHTML(b,170)}<span class="t">${esc(b.title)}</span><span class="a">${esc(b.author)}・${ST[b.status]||''}</span></button>`).join('')||'<p class="note">該当する本がありません</p>'}
 $('#grid').onclick=e=>{const c=e.target.closest('.card');if(c)openBook(c.dataset.id)};
 for(const id of ['#q','#fst','#sort'])$(id).addEventListener('input',renderList);
@@ -619,7 +618,7 @@ $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</butt
   $('#ex').onclick=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json()],{type:'application/json'}));a.download='hondana-'+new Date().toISOString().slice(0,10)+'.json';a.click()}catch(e){toast('書き出しできない環境です。コピーを使ってください')}};
   $('#cp').onclick=()=>navigator.clipboard.writeText(json()).then(()=>toast('コピーしました'),()=>toast('コピーできませんでした'));
   $('#im').onclick=()=>{const i=$('#jsonIn');i.value='';i.onchange=async()=>{try{const d=JSON.parse(await i.files[0].text());if(!d.cases||!d.books)throw 0;S=d;save();renderAll();closePanel();toast('読み込みました')}catch(e){toast('読み込めないファイルです')}};i.click()};
-  $('#clr').onclick=()=>confirmP('すべての本と本棚を消して空にします。',()=>{S={books:{},tray:[],follows:[],cases:[{id:uid(),name:'わたしの本棚',shelves:[1,2,3].map(n=>({id:uid(),name:n+'段目',books:[]}))}]};S.cur=S.cases[0].id;save();renderAll()});
+  $('#clr').onclick=()=>confirmP('すべての本と本棚を消して空にします。',()=>{S=emptyState();save();renderAll()});
 };
 
 /* ---- 画面切替 ---- */
