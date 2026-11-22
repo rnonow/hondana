@@ -599,8 +599,10 @@ async function checkNews(){if(NEWS_RUN)return;const T=targets();const m=$('#nmsg
     await new Promise(r=>setTimeout(r,350))}
   out.sort((a,b)=>b.pubdate.localeCompare(a.pubdate));
   S.news={t:Date.now(),items:out,fail:fail===T.length};save();NEWS_RUN=false;$('#fcheck').disabled=false;renderNews();renderBadge()}
-function renderBadge(){const seen=new Set(S.newsSeen||[]);const n=(S.news?.items||[]).filter(x=>!seen.has(x.isbn)).length;$('[data-v=news]').textContent=n?`新刊チェック（${n}）`:'新刊チェック'}
-function renderNews(){const N=S.news;const m=$('#nmsg');const today=new Date().toISOString().slice(0,10);
+// 今の本棚に無いシリーズ・著者（消した本やサンプルの本）の新刊は出さない
+function pruneNews(){if(!S.news?.items)return;const K=new Set(targets().map(t=>t.key));const L=S.news.items.filter(x=>K.has(x.key));if(L.length!==S.news.items.length){S.news.items=L;if(!Object.keys(S.books).length)S.news=null;save()}}
+function renderBadge(){pruneNews();const seen=new Set(S.newsSeen||[]);const n=(S.news?.items||[]).filter(x=>!seen.has(x.isbn)).length;$('[data-v=news]').textContent=n?`新刊チェック（${n}）`:'新刊チェック'}
+function renderNews(){pruneNews();const N=S.news;const m=$('#nmsg');const today=new Date().toISOString().slice(0,10);
   $('#nlast').textContent=N?`最終確認：${new Date(N.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
   const T=targets();$('#ntgt').textContent=`いま追いかけているもの：シリーズ ${T.filter(t=>t.type==='title').length}件、著者 ${T.filter(t=>t.type==='author').length}件（本棚の本から自動）`;
   $('#mutes').innerHTML=(S.mute||[]).map((k,i)=>`<button class="chip" data-um="${i}">${esc(k.slice(2))} <i>戻す</i></button>`).join('')||'<span class="note">なし</span>';
