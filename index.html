@@ -372,11 +372,11 @@ const tiSize=t=>{const n=[...String(t||'')].length;return n>26?' style="font-siz
 function pileHTML(id){const b=S.books[id];if(!b)return '';const L=look(b),h=hash(b.id),h2=hash(b.id+'x'),h3=hash('r'+b.id);
   return `<div class="bk pb st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)}" tabindex="0" style="--pw:${70+h%18}%;--px:${h2%25-12}%;--pr:${(h3%41-20)/10}deg"><div class="pspine" style="--c:${L.c};--t:${L.t}"><span>${esc(b.title)}</span></div></div>`}
 const READER=`<svg viewBox="0 0 160 168" aria-hidden="true">
-<path class="ln" stroke="var(--woodhi)" stroke-width="7" d="M38 34v96"/>
-<path class="ln" stroke="var(--woodhi)" stroke-width="7" d="M38 128h58"/>
-<path class="ln" stroke="var(--wood)" stroke-width="4" d="M42 132v34M92 132v34"/>
+<path class="ln" style="stroke:var(--woodhi);stroke-width:7" d="M38 34v96"/>
+<path class="ln" style="stroke:var(--woodhi);stroke-width:7" d="M38 128h58"/>
+<path class="ln" style="stroke:var(--wood);stroke-width:4" d="M42 132v34M92 132v34"/>
 <path class="ln" d="M61 62 68 90 80 64"/>
-<g transform="translate(74 44)"><rect width="13" height="14" rx="2" fill="#fff" stroke="var(--ink)" stroke-width="2.5"/><path class="ln" stroke-width="2.5" d="M0 4q-5 0-5 4.5t5 4.5"/></g>
+<g transform="translate(74 44)"><rect width="13" height="14" rx="2" fill="#fff" stroke="var(--ink)" stroke-width="2.5"/><path class="ln" style="stroke-width:2.5" d="M0 4q-5 0-5 4.5t5 4.5"/></g>
 <g class="steam"><path d="M79 40q-3-4 0-8t0-8"/><path d="M84 40q-3-4 0-8t0-8"/><path d="M89 40q-3-4 0-8t0-8"/></g>
 <circle cx="64" cy="38" r="12" fill="var(--wall)" stroke="var(--ink)" stroke-width="3"/>
 <path class="ln" d="M71 36h.1M62 50 54 124M54 124 94 122 98 158 110 158M60 62 76 98 102 86"/>
@@ -1101,7 +1101,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v71';let updAt=0;
+const APP_V='hondana-v72';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
