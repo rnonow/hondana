@@ -111,6 +111,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .badge.own{background:var(--ok)}
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
+#updBar{position:fixed;left:50%;translate:-50%;bottom:calc(84px + env(safe-area-inset-bottom));z-index:45;display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 10px 8px 14px;box-shadow:0 8px 24px #0004;white-space:nowrap}#updBar[hidden]{display:none}
 .help h3{font-size:16px;margin:18px 0 6px}.help ul{margin:0;padding-left:1.2em}.help li{margin:0 0 8px;line-height:1.6;font-size:15px}
 #viewer{position:fixed;inset:0;z-index:35;overflow:auto;background:var(--wall);padding:14px max(3vw,14px) 40px}
 #viewer .vhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}#viewer h2{margin:0;font-size:20px;flex:1 1 200px}
@@ -216,6 +217,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 
 <aside class="panel" id="panel" aria-label="本の詳細"></aside>
 <div id="viewer" hidden></div>
+<div id="updBar" hidden><span>新しい版があります</span><button class="pri" id="updGo">更新する</button></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="imgIn" accept="image/*" hidden>
 <input type="file" id="jsonIn" accept="application/json" hidden>
@@ -780,7 +782,18 @@ function show(v){for(const b of document.querySelectorAll('#tabs button'))b.setA
   if(v==='news'){if(newsStale())checkNews();S.newsSeen=(S.news?.items||[]).map(x=>x.isbn);save();setTimeout(renderBadge,1500)}}
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
+/* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
+const APP_V='hondana-v25';let updAt=0;
+async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
+  try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
+    try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
+    const tried=sessionStorage.getItem('hondana.upd');
+    if(auto&&tried!==v&&!panel.classList.contains('open')&&!D){sessionStorage.setItem('hondana.upd',v);location.reload();return}
+    $('#updBar').hidden=false}catch(e){}}
+$('#updGo').onclick=()=>{sessionStorage.removeItem('hondana.upd');location.reload()};
+checkUpdate(true);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate(true)});
 if(newsStale()&&Object.keys(S.books).length)setTimeout(()=>checkNews(),2500);
 /* 一度だけ：シリーズの色をそろえる（以前の版で一括登録した本の色がばらばらだったため） */
 if(!S.mig2){const nk=k=>k.replace(/[\s　・.,:：!！?？『』「」()（）\-]/g,'');const st={};for(const [k,v] of Object.entries(S.seriesStyle||{}))st[nk(k)]=v;S.seriesStyle=st;

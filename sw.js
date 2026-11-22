@@ -1,5 +1,5 @@
 // アプリ本体をキャッシュしてオフラインでも開けるようにする（本のデータは端末の localStorage）
-const V = 'hondana-v24';
+const V = 'hondana-v25';
 const IMG = 'hondana-img'; // 表紙画像（更新のたびに取り直さないよう端末に保存）
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-180.png', 'lib/zxing-reader.js', 'lib/zxing_reader.wasm'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL))); self.skipWaiting(); });
@@ -14,6 +14,6 @@ self.addEventListener('fetch', e => {
   }
   if (u.origin !== location.origin) return; // 書籍APIは常にネットから
   // 自分のファイルはネット優先、つながらない時だけキャッシュ
-  e.respondWith(fetch(e.request).then(r => { const c = r.clone(); caches.open(V).then(ca => ca.put(e.request, c)); return r; })
+  e.respondWith(fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(r => { const c = r.clone(); caches.open(V).then(ca => ca.put(e.request, c)); return r; })
     .catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
 });
