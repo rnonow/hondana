@@ -90,6 +90,12 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .pspine{height:calc(30px * var(--k) + 6px);background:var(--c);color:var(--t);border-radius:2px;display:flex;align-items:center;padding:0 12px;box-shadow:inset 0 3px 4px -2px #fff5,inset 0 -4px 5px -2px #0007,0 2px 3px #0005;font-weight:700;font-size:12.5px;overflow:hidden}
 .pspine span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row.pile .mark{width:70%;height:4px}
+/* 読書中：少し開いた本＋しおりのひも */
+#readRow .bk{perspective:700px;margin:0 12px 0 4px}
+#readRow .bk .face{margin:0;transform:rotateY(-24deg);transform-origin:left center;z-index:1;box-shadow:4px 3px 8px #0006}
+#readRow .bk::before{content:"";position:absolute;left:10%;right:-6%;top:3%;bottom:1%;background:repeating-linear-gradient(90deg,#fbf7ee 0 2px,#e4dccb 2px 3px);border-radius:0 3px 3px 0;box-shadow:3px 3px 8px #0005;z-index:0}
+#readRow .bk::after{content:"";position:absolute;right:22%;top:-12px;width:7px;height:34%;background:#c0392b;z-index:2;clip-path:polygon(0 0,100% 0,100% 100%,50% 88%,0 100%);box-shadow:inset -2px 0 2px #0003}
+#readRow .bk.dragging::after,#readRow .bk.dragging::before{display:none}
 .tray{margin-top:22px;max-width:1240px}
 .tray h3,.sec h3{font-size:16px;margin:0 0 6px}
 .tray .row{background:var(--tray);box-shadow:inset 0 4px 10px #0003;min-height:170px;border-radius:6px}
@@ -1065,7 +1071,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v66';let updAt=0;
+const APP_V='hondana-v67';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
