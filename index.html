@@ -616,8 +616,8 @@ function form(b,add){return `
   <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
   </details>
-${add?'':`  <div class="two"><div class="fld"><label>状態</label><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
-  <div class="fld"><label>本棚での見せ方</label><select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>`}
+  <div class="two"><div class="fld">${add?'':'<label>状態</label>'}<select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
+  <div class="fld">${add?'':'<label>本棚での見せ方</label>'}<select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
   <div class="fld"><label>背表紙の色（左ほどおすすめ。文字の色は自動）</label><div class="cchips" id="f-chips">${chipsHTML(recoColors(b),look(b).c)}<input type="color" id="f-color" value="${look(b).c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
   ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}
   <div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>
@@ -924,7 +924,7 @@ $('#findBtn').onclick=()=>{show('list');scrollTo(0,0);setTimeout(()=>$('#q').foc
 $('#findBack').onclick=()=>show('shelf');
 $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</button><h2>使い方</h2><div class="help">
   <h3>本を登録する</h3><ul>
-  <li>右上の「＋ 本を追加」から、バーコードを読み取るか、書名や著者名で探して登録します。追加した本は「読了」として、表示中の本棚の最後（一番下の段の終わり）に入ります。積読などにしたい時は、本をタップして状態を変えるか、読書中タブの棚へドラッグしてください。</li>
+  <li>右上の「＋ 本を追加」から、バーコードを読み取るか、書名や著者名で探して登録します。読了の本は表示中の本棚の最後（一番下の段の終わり）に、積読・読書中・読みたいの本はそれぞれの棚に入ります。</li>
   <li>「何冊も続けて読み取る」を使うと、バーコードを次々に読み取ってまとめて登録できます。</li>
   <li>マンガなど巻数のある本を1冊読み込むと、同じシリーズでまだ登録していない巻が出てきます。持っている巻を選ぶと一緒に登録できます。</li></ul>
   <h3>本を並べる</h3><ul>
@@ -969,7 +969,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v49';let updAt=0;
+const APP_V='hondana-v50';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
