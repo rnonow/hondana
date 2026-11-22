@@ -250,7 +250,7 @@ const byVol=(a,b)=>seriesOf(S.books[a]).localeCompare(seriesOf(S.books[b]),'ja')
 const skey=b=>z2h(seriesOf(b)).toLowerCase().replace(/[\s　]+/g,'');
 function look(b,own=true){const k=skey(b),h=hash(k||b.isbn||b.title);const st=(S.seriesStyle||{})[k];
   const p=own&&b.color?[b.color,b.tcolor||'#ffffff']:st?[st.c,st.t]:PAL[h%PAL.length];
-  return {c:p[0],t:p[1],h:150+(h%5)*10,w:30+(hash(k+'w')%4)*6}}
+  return {c:p[0],t:p[1],h:170,w:30+(hash(k+'w')%4)*6}} // 高さは見栄え重視で全冊そろえる
 const seriesBooks=b=>{const k=skey(b);return Object.values(S.books).filter(x=>skey(x)===k)};
 /* 表紙画像：自分で選んだ画像 → ISBNから Google ブックスの表紙画像（画像がない本は灰色の仮画像が返るので、幅で見分けて外す） */
 const coverSrc=b=>b.cover||(b.isbn&&/^97[89]\d{10}$/.test(b.isbn)?`https://books.google.com/books/content?vid=ISBN${b.isbn}&printsec=frontcover&img=1&zoom=1&fife=w400`:'');
@@ -261,7 +261,7 @@ function coverHTML(b){const src=coverSrc(b);
 function faceHTML(b,fh){const L=look(b);return `<div class="face" style="--c:${L.c};--t:${L.t};--fh:${fh||L.h}px">${coverHTML(b)}</div>`}
 function bookHTML(id){const b=S.books[id];if(!b)return '';const L=look(b);
   const src=coverSrc(b);
-  const inner=b.mode==='face'?faceHTML(b,L.h+10):
+  const inner=b.mode==='face'?faceHTML(b,L.h):
     b.spine?`<div class="spine photo" style="--c:${L.c};--h:${L.h}px;--w:${b.spineW||L.w}px"><img src="${esc(b.spine)}" alt=""></div>`:
     `<div class="spine" style="--c:${L.c};--t:${L.t};--h:${L.h}px;--w:${L.w}px"><span class="ti">${esc(b.title)}</span><span class="au">${esc(b.author)}</span></div>`;
   return `<div class="bk st-${b.status}${SEL.has(id)?' sel':''}" data-id="${id}" title="${esc(b.title)} / ${esc(b.author)}" tabindex="0">${inner}</div>`}
