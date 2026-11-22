@@ -121,6 +121,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .badge.own{background:var(--ok)}
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
+.viewbar{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:13px}.viewbar[hidden]{display:none}.viewbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.viewbar button{min-height:36px;padding:4px 12px;font-size:13px}
+.listact{display:flex;align-items:center;gap:8px}.listact .note{flex:1;margin:0}.listact button{min-height:36px;padding:4px 12px;font-size:13px}
 .cchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.cchips.one{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:3px 3px 4px;margin:0 -3px}.cchips.one::-webkit-scrollbar{display:none}.cchips.one>*{flex:none}.cchip{width:38px;height:38px;min-height:0;padding:0;border-radius:50%;background:var(--c);color:var(--t);border:2px solid #0002;font-weight:700}.cchip.on{outline:3px solid var(--acc);outline-offset:2px}
 #seg{position:sticky;bottom:12px;z-index:29;box-shadow:0 6px 20px #0002}#v-news{display:flex;flex-direction:column}#v-news[hidden]{display:none}#seg{order:9;margin:16px 0 0}
 .filters.ctr{flex-direction:column;align-items:center;gap:6px;text-align:center}.filters.ctr .pri{min-width:180px}
@@ -220,6 +222,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selStatus">状態を変える</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button></div>
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
     <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。「＋ 追加」から登録できます。</p>
+    <div class="viewbar" id="viewBar" hidden><span id="viewTxt"></span><button id="viewOff">元の本棚に戻す</button></div>
     <div class="case" id="case"></div>
     <div class="pgnav" id="pgnav" hidden><button id="pgPrev" aria-label="前のページ">‹</button><input type="range" id="pgBar" min="0" max="1" step="1" value="0" aria-label="ページを選ぶ"><span id="pgNo"></span><button id="pgNext" aria-label="次のページ">›</button></div>
   </section>
@@ -238,9 +241,9 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
     <div class="filters">
       <input id="q" type="search" placeholder="タイトル・著者・出版社で検索" aria-label="検索">
       <select id="fst" aria-label="状態"><option value="">すべての状態</option><option value="unread">積読</option><option value="reading">読書中</option><option value="done">読了</option><option value="wish">読みたい</option></select>
-      <select id="sort" aria-label="並び順"><option value="added">追加が新しい順</option><option value="title">タイトル順</option><option value="author">著者順</option><option value="pub">発売日が新しい順</option></select>
+      <select id="sort" aria-label="並び順"><option value="added">追加が新しい順</option><option value="title">タイトル順</option><option value="author">著者順</option><option value="publisher">出版社順</option><option value="pub">発売日が新しい順</option></select>
     </div>
-    <p class="note" id="count"></p>
+    <div class="listact"><p class="note" id="count"></p><button class="pri" id="toShelf">本棚に並べて見る</button></div>
     <div class="grid" id="grid"></div>
   </section>
 
@@ -355,17 +358,17 @@ function renderSampleBar(){const L=S.sampleKeep?[]:sampleBooks();$('#sampleBar')
 const bottomList=()=>{const c=curCase();return c.shelves[c.shelves.length-1].books};
 function sweepTray(){const t=(S.tray||[]).filter(id=>S.books[id]&&!S.cases.some(c=>c.shelves.some(x=>x.books.includes(id))));S.tray=[];if(t.length){bottomList().push(...t);save()}return t.length}
 /* 本棚をページに分けて、本のように左右にめくる。1ページ＝最大3段、段の本は幅に収まる分ずつ次のページへ続く */
-let PAGE=0,PAGES=1,PW=0;
+let PAGE=0,PAGES=1,PW=0,VIEW=null;
 function bookW(id,k){const b=S.books[id];if(!b)return 0;const L=look(b);return (b.mode==='face'?L.h*k*.7+12:L.w*k)+2}
-function renderPages(c,zf){$('#pgnav').hidden=false;const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
+function renderPages(c,zf){$('#viewBar').hidden=!VIEW;if(VIEW)$('#viewTxt').textContent=VIEW.label;$('#pgnav').hidden=false;const el=$('#case');const mob=matchMedia('(max-width:600px)').matches;
   const k=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k'))||1;
   const W=el.clientWidth||Math.min(document.querySelector('main').clientWidth,1240);PW=W;
   // いつも1ページ3段。画面の高さに収まるように、ページ全体を縮める
   const shH=mob?200:240,per=3;const top=Math.max(60,Math.min(240,el.getBoundingClientRect().top+scrollY||110));
   const lim=shelfLimit();const z=zf||Math.max(.45,Math.min(1,(lim-top-4)/(per*shH+(mob?8:14))));el.style.setProperty('--z',z.toFixed(3));
   const inner=W/z-(mob?12:28)-(mob?16:24)-8;
-  const rows=[];
-  for(const sh of c.shelves){const out=[[]];let w=0;for(const id of sh.books){const bw=bookW(id,k);if(w+bw>inner&&out.at(-1).length){out.push([]);w=0}out.at(-1).push(id);w+=bw}
+  const rows=[];const SRC=VIEW?VIEW.groups.map(([name,ids])=>({id:'view',name,books:ids.filter(id=>S.books[id])})).filter(g=>g.books.length):c.shelves;
+  for(const sh of SRC){const out=[[]];let w=0;for(const id of sh.books){const bw=bookW(id,k);if(w+bw>inner&&out.at(-1).length){out.push([]);w=0}out.at(-1).push(id);w+=bw}
     out.forEach((part,i)=>rows.push(`<div class="shelf"><button class="sname" data-sid="${sh.id}" title="段の名前を変更・削除">${esc(sh.name)}${i?'<span class="pn">のつづき</span>':''}</button>
       <div class="row" data-shelf="${sh.id}" data-next="${out[i+1]?.[0]||''}">${part.map(bookHTML).join('')||'<span class="empty">ここに本をドラッグ</span>'}</div><div class="board"></div></div>`))}
   const pages=[];for(let g=0;g<rows.length;g+=per)pages.push(rows.slice(g,g+per).join(''));
@@ -381,6 +384,7 @@ function renderPgNav(){const n=$('#pgnav');n.hidden=false;const bar=$('#pgBar');
 function goPage(i){const el=$('#case');i=Math.max(0,Math.min(PAGES-1,i));if(i===PAGE&&Math.abs(el.scrollLeft-i*el.clientWidth)<2)return false;PAGE=i;el.scrollTo({left:i*el.clientWidth,behavior:'smooth'});renderPgNav();return true}
 $('#case').addEventListener('scroll',()=>{const el=$('#case');if(!el.clientWidth)return;const i=Math.round(el.scrollLeft/el.clientWidth);if(i!==PAGE){PAGE=i;renderPgNav()}},{passive:true});
 $('#pgPrev').onclick=()=>goPage(PAGE-1);
+$('#viewOff').onclick=()=>{VIEW=null;PAGE=0;renderShelf()};
 $('#pgBar').oninput=e=>{const i=+e.target.value;if(i===PAGE)return;const el=$('#case');PAGE=i;el.scrollTo({left:i*el.clientWidth,behavior:'auto'});$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1};$('#pgNext').onclick=()=>goPage(PAGE+1);
 let RSZ;addEventListener('resize',()=>{clearTimeout(RSZ);RSZ=setTimeout(()=>{const w=$('#case').clientWidth;if(w&&Math.abs(w-PW)>4&&!D?.on)renderShelf()},200)});
 /* 読書中タブ：3つの棚が1画面に収まるように全体を縮める */
@@ -559,15 +563,15 @@ function edgeFlip(x){const el=$('#case');if($('#v-shelf').hidden||PAGES<2){retur
 function endDrag(){if(!D)return;clearTimeout(D.timer);clearTimeout(D.ft);$('#case').classList.remove('edgeL','edgeR');D.el.classList.remove('lift','dragging');for(const el of document.querySelectorAll('#v-shelf .bk.dragging,#v-read .bk.dragging'))el.classList.remove('dragging');document.body.classList.remove('dragging');D.g?.remove();D.m?.remove()}
 document.addEventListener('pointerdown',e=>{
   const bk=e.target.closest('#v-shelf .bk,#v-read .bk');if(!bk||e.button>0)return;
-  D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse'};
-  if(D.touch){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;bk.classList.add('lift');navigator.vibrate?.(12);startDrag(d.lx??d.x,d.ly??d.y)},400)}
+  D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse',nodrag:!!VIEW&&!!bk.closest('#v-shelf')};
+  if(D.touch&&!D.nodrag){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;bk.classList.add('lift');navigator.vibrate?.(12);startDrag(d.lx??d.x,d.ly??d.y)},400)}
 });
 document.addEventListener('touchmove',e=>{if(D?.on)e.preventDefault()},{passive:false});
 document.addEventListener('contextmenu',e=>{if(e.target.closest('.bk'))e.preventDefault()});
 document.addEventListener('pointermove',e=>{
   if(!D)return;D.lx=e.clientX;D.ly=e.clientY;
   if(!D.on){const mv=Math.hypot(e.clientX-D.x,e.clientY-D.y);
-    if(D.touch){if(mv>10){endDrag();D=null}return}
+    if(D.touch||D.nodrag){if(mv>10){endDrag();D=null}return}
     if(mv<6)return;startDrag(e.clientX,e.clientY)}
   e.preventDefault();
   D.g.style.left=e.clientX-D.dx+'px';D.g.style.top=e.clientY-D.dy+'px';
@@ -602,7 +606,7 @@ $('#caseRen').onclick=()=>ask('本棚の名前',curCase().name,v=>{curCase().nam
 $('#shelfNew').onclick=()=>{const c=curCase();c.shelves.push({id:uid(),name:(c.shelves.length+1)+'段目',books:[]});save();renderShelf()};
 $('#caseDel').onclick=()=>{if(S.cases.length<2)return toast('本棚は最低1つ必要です');const c=curCase();
   confirmP(`「${c.name}」を削除します。並んでいた本は、ほかの本棚の一番下の段に移ります。`,()=>{const mv=c.shelves.flatMap(s=>s.books);S.cases=S.cases.filter(x=>x!==c);S.cur=S.cases[0].id;bottomList().push(...mv);save();renderShelf()})};
-$('#case').addEventListener('click',e=>{const b=e.target.closest('.sname');if(!b)return;const c=curCase();const s=c.shelves.find(x=>x.id===b.dataset.sid);
+$('#case').addEventListener('click',e=>{const b=e.target.closest('.sname');if(!b||VIEW)return;const c=curCase();const s=c.shelves.find(x=>x.id===b.dataset.sid);
   openPanel(`<button class="x" data-close>閉じる</button><h2>段の設定</h2><div class="fld"><label>段の名前</label><input id="sn" value="${esc(s.name)}"></div>
   <div class="btns act"><button class="pri" id="snOk">保存</button><button id="snDel">この段を削除</button></div>
   <div class="btns"><button id="snTidy">シリーズを巻数順に整える</button></div>`);
@@ -822,10 +826,16 @@ function fitGrid(){requestAnimationFrame(()=>{if($('#v-list').hidden)return;cons
 addEventListener('resize',fitGrid);
 function renderList(){fitGrid();const q=$('#q').value.trim().toLowerCase(),st=$('#fst').value,so=$('#sort').value;
   let a=Object.values(S.books).filter(b=>(!st||b.status===st)&&(!q||[b.title,b.author,b.publisher,b.isbn].join(' ').toLowerCase().includes(q)));
-  const cmp={added:(x,y)=>y.added-x.added,title:(x,y)=>x.title.localeCompare(y.title,'ja'),author:(x,y)=>x.author.localeCompare(y.author,'ja'),pub:(x,y)=>String(y.pubdate).localeCompare(String(x.pubdate))}[so];
+  const cmp={added:(x,y)=>y.added-x.added,title:(x,y)=>x.title.localeCompare(y.title,'ja'),author:(x,y)=>x.author.localeCompare(y.author,'ja')||byVolB(x,y),publisher:(x,y)=>String(x.publisher).localeCompare(String(y.publisher),'ja')||x.author.localeCompare(y.author,'ja')||byVolB(x,y),pub:(x,y)=>String(y.pubdate).localeCompare(String(x.pubdate))}[so];
   a.sort(cmp);
-  $('#count').textContent=`${a.length}冊 / 全${Object.keys(S.books).length}冊`;
+  $('#count').textContent=`${a.length}冊 / 全${Object.keys(S.books).length}冊`;LIST=a;$('#toShelf').disabled=!a.length;
   $('#grid').innerHTML=a.map(b=>`<button class="card" data-id="${b.id}">${faceHTML(b,170)}<span class="t">${esc(b.title)}</span><span class="a">${esc(b.author)}・${ST[b.status]||''}</span></button>`).join('')||'<p class="note">該当する本がありません</p>'}
+let LIST=[];const byVolB=(x,y)=>seriesOf(x).localeCompare(seriesOf(y),'ja')||volOf(x)-volOf(y);
+/* 探した結果を本棚に並べて見る（保存している並び順は変えない。「元の本棚に戻す」で戻る） */
+$('#toShelf').onclick=()=>{const so=$('#sort').value,q=$('#q').value.trim(),st=$('#fst').value;const key={author:b=>b.author||'著者なし',publisher:b=>b.publisher||'出版社なし'}[so];
+  const groups=[];for(const b of LIST){const g=key?key(b):'';if(!groups.length||groups.at(-1)[0]!==g)groups.push([g,[]]);groups.at(-1)[1].push(b.id)}
+  const lab=[q&&`「${q}」`,st&&ST[st],$('#sort').selectedOptions[0].textContent].filter(Boolean).join('・');
+  VIEW={label:`${lab}（${LIST.length}冊）`,groups:groups.map(([g,ids])=>[g||'　',ids])};PAGE=0;show('shelf');renderShelf()};
 $('#grid').onclick=e=>{const c=e.target.closest('.card');if(c)openBook(c.dataset.id)};
 for(const id of ['#q','#fst','#sort'])$(id).addEventListener('input',renderList);
 
@@ -984,6 +994,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>「読書中」「積読」「読みたい」にした本は、下のタブ「読書中」にあるそれぞれの棚へ自動で入ります（積読は登録順）。3つの棚の間でドラッグすると、状態もその棚に合わせて変わります。読了にすると本棚の一番下の段の最後に移ります。</li>
   <li>本棚の右上の「…」から、本棚や段の追加、画像で保存、共有リンク、まとめて選ぶなどができます。データと使い方は右上の ⚙ にあります。</li>
   <li>背表紙の色は、タイトルの言葉（「海」なら青など）からおすすめの色が最初に選ばれます。本をタップして編集すると、おすすめの色から選び直せます。文字の色は背景に合わせて白か黒に自動で変わります。</li>
+  <li>「蔵書を探す」で絞り込んだり並べ替えたりした本は、「本棚に並べて見る」で本棚に並べて見られます（著者順・出版社順なら著者・出版社ごとに段が分かれます）。「元の本棚に戻す」で元の並びに戻ります。並べて見ている間は本を動かせません。</li>
   <li>本棚は本のようにページになっていて、1ページに3段ずつ入ります。左右にスワイプするか、下のバーをスライドしてめくります。段に入りきらない本は次の段へ、3段目の続きは次のページへ続きます。本を長押しで持ったまま画面の左右の端へ持っていくと、ページがめくれます。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>選書（新刊・おすすめ）</h3><ul>
@@ -1026,7 +1037,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v61';let updAt=0;
+const APP_V='hondana-v62';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
