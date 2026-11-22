@@ -189,18 +189,18 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
   </section>
 
   <section id="v-news" class="sec" hidden>
-    <h3>フォロー中の著者・シリーズ</h3>
-    <p class="note">登録したキーワードで国立国会図書館サーチを検索し、最近90日以内に出た本と発売予定の本を表示します。</p>
-    <div class="follow" id="follows"></div>
-    <div class="filters">
-      <input id="fq" placeholder="著者名やシリーズ名（例：ヨシタケシンスケ）" aria-label="フォローするキーワード">
-      <select id="ft" aria-label="種類"><option value="author">著者</option><option value="title">シリーズ・タイトル</option></select>
-      <button id="fadd">フォロー</button>
-      <button class="pri" id="fcheck">新刊を確認</button>
-    </div>
-    <p class="note" id="sugg"></p>
+    <h3>新刊チェック</h3>
+    <p class="note">本棚にある本のシリーズと著者から、最近90日に出た本と発売予定の本を自動で探します（国立国会図書館サーチ）。アプリを開いた時に半日に1回確認します。</p>
+    <div class="filters" style="align-items:center"><button class="pri" id="fcheck">今すぐ確認</button><span class="note" id="nlast" style="margin:0"></span></div>
     <p class="msg" id="nmsg"></p>
     <div id="news"></div>
+    <details id="nset" style="margin-top:18px"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">▸ 追いかける対象の設定</summary>
+      <p class="note" id="ntgt"></p>
+      <h3 style="font-size:14px">追わないにしたもの（タップで元に戻す）</h3><div class="follow" id="mutes"></div>
+      <h3 style="font-size:14px">本棚にない著者・シリーズも追う</h3>
+      <div class="filters"><input id="fq" placeholder="著者名やシリーズ名" aria-label="追加で追う著者・シリーズ"><select id="ft" aria-label="種類"><option value="author">著者</option><option value="title">シリーズ</option></select><button id="fadd">追加</button></div>
+      <div class="follow" id="follows"></div>
+    </details>
   </section>
 </main>
 
@@ -228,7 +228,7 @@ function sample(){
     ['9784167910105','羊と鋼の森','宮下奈都','文藝春秋','2018'],['9784101369181','火車','宮部みゆき','新潮社','1998'],
     ['9784102122044','星の王子さま','サン＝テグジュペリ','新潮社','2006'],['9784101006055','人間失格','太宰治','新潮社','2006']];
   const books={};const ids=B.map(([isbn,title,author,publisher,pubdate],i)=>{const id=uid();books[id]={id,isbn,title,author,publisher,pubdate,status:['done','unread','reading','done'][i%4],mode:(i===4||i===5)?'face':'spine',memo:'',added:Date.now()-i*864e5,cover:''};return id});
-  return {books,tray:[],follows:[{q:'辻村深月',type:'author'},{q:'ヨシタケシンスケ',type:'author'}],
+  return {books,tray:[],follows:[],
     cases:[{id:uid(),name:'リビングの本棚',shelves:[{id:uid(),name:'上段',books:ids.slice(0,6)},{id:uid(),name:'中段',books:ids.slice(6,10)},{id:uid(),name:'下段',books:ids.slice(10)}]}],cur:null,sample:true};
 }
 let S;
@@ -524,32 +524,51 @@ $('#grid').onclick=e=>{const c=e.target.closest('.card');if(c)openBook(c.dataset
 for(const id of ['#q','#fst','#sort'])$(id).addEventListener('input',renderList);
 
 /* ---- 新刊チェック ---- */
-function renderFollows(){
-  $('#follows').innerHTML=S.follows.map((f,i)=>`<span class="chip" style="border:1px solid var(--line)"><span>${f.type==='author'?'著者':'シリーズ'}：${esc(f.q)}</span><button class="x" style="float:none;min-height:30px;padding:0 8px" data-rm="${i}" aria-label="${esc(f.q)}のフォローを外す">×</button></span>`).join('')||'<span class="note">まだ何もフォローしていません</span>';
-  const counts={};for(const b of Object.values(S.books))for(const a of String(b.author).split('・'))if(a)counts[a]=(counts[a]||0)+1;
-  const sug=Object.entries(counts).filter(([a])=>!S.follows.some(f=>f.q===a)).sort((x,y)=>y[1]-x[1]).slice(0,6);
-  $('#sugg').innerHTML=sug.length?'蔵書から候補：'+sug.map(([a,n])=>`<button class="chip" data-sug="${esc(a)}" style="margin:2px">${esc(a)} <i>${n}冊</i></button>`).join(''):''}
-$('#follows').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){S.follows.splice(+b.dataset.rm,1);save();renderFollows()}};
-$('#sugg').onclick=e=>{const b=e.target.closest('[data-sug]');if(b){S.follows.push({q:b.dataset.sug,type:'author'});save();renderFollows()}};
-$('#fadd').onclick=()=>{const q=$('#fq').value.trim();if(!q)return;S.follows.push({q,type:$('#ft').value});$('#fq').value='';save();renderFollows()};
+/* ---- 新刊チェック：本棚のシリーズと著者から自動で ---- */
+const normKey=t=>z2h(t).toLowerCase().replace(/[\s　・.,:：!！?？『』「」()（）-]/g,'');
+function targets(){S.mute=S.mute||[];S.follows=S.follows||[];const mute=new Set(S.mute);const ser={},au={};
+  for(const b of Object.values(S.books)){const sr=seriesOf(b),v=volOf(b);
+    if(sr){const k='s:'+normKey(sr);ser[k]=ser[k]||{key:k,q:sr,type:'title',n:0,max:0,hasVol:false};ser[k].n++;ser[k].max=Math.max(ser[k].max,v);if(v)ser[k].hasVol=true}
+    for(const a of String(b.author).split('・').map(x=>x.trim()).filter(Boolean)){const k='a:'+normKey(a);au[k]=au[k]||{key:k,q:a,type:'author',n:0};au[k].n++}}
+  const s1=Object.values(ser).filter(x=>x.hasVol||x.n>1),a1=Object.values(au);
+  const man=S.follows.map(f=>({key:(f.type==='author'?'a:':'s:')+normKey(f.q),q:f.q,type:f.type,n:99,max:0,manual:true}));
+  const all=[...man,...s1.sort((x,y)=>y.n-x.n),...a1.sort((x,y)=>y.n-x.n)];const seen=new Set();
+  return all.filter(t=>!mute.has(t.key)&&!seen.has(t.key)&&seen.add(t.key)).slice(0,40)}
+let NEWS_RUN=false;
+async function checkNews(){if(NEWS_RUN)return;const T=targets();const m=$('#nmsg');m.className='msg';
+  if(!T.length){m.textContent='本棚に本を登録すると、その本のシリーズや著者の新刊を探します';return}
+  NEWS_RUN=true;$('#fcheck').disabled=true;
+  const since=new Date(Date.now()-90*864e5).toISOString().slice(0,7);const owned=new Set(Object.values(S.books).map(b=>b.isbn));
+  const hide=new Set(S.newsHide||[]);const seen=new Set();const out=[];let fail=0,done=0;
+  for(const t of T){m.textContent=`確認中… ${++done}/${T.length}（${t.q}）`;
+    try{const items=await ndl(`${t.type==='author'?'creator':'title'}=${encodeURIComponent(t.q)}&from=${since}&cnt=60`);
+      for(const n of items){if(!n.isbn||n.pubdate<since||owned.has(n.isbn)||hide.has(n.isbn)||seen.has(n.isbn))continue;
+        if(t.type==='title'){if(normKey(seriesOf(n))!==normKey(t.q))continue;const v=volOf(n);if(v&&t.max&&v<=t.max)continue}
+        seen.add(n.isbn);out.push({...n,key:t.key,label:(t.type==='author'?'著者：':'シリーズ：')+t.q})}
+    }catch(e){fail++}
+    await new Promise(r=>setTimeout(r,350))}
+  out.sort((a,b)=>b.pubdate.localeCompare(a.pubdate));
+  S.news={t:Date.now(),items:out,fail:fail===T.length};save();NEWS_RUN=false;$('#fcheck').disabled=false;renderNews();renderBadge()}
+function renderBadge(){const seen=new Set(S.newsSeen||[]);const n=(S.news?.items||[]).filter(x=>!seen.has(x.isbn)).length;$('[data-v=news]').textContent=n?`新刊チェック（${n}）`:'新刊チェック'}
+function renderNews(){const N=S.news;const m=$('#nmsg');const today=new Date().toISOString().slice(0,10);
+  $('#nlast').textContent=N?`最終確認：${new Date(N.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`:'';
+  const T=targets();$('#ntgt').textContent=`いま追いかけているもの：シリーズ ${T.filter(t=>t.type==='title').length}件、著者 ${T.filter(t=>t.type==='author').length}件（本棚の本から自動）`;
+  $('#mutes').innerHTML=(S.mute||[]).map((k,i)=>`<button class="chip" data-um="${i}">${esc(k.slice(2))} <i>戻す</i></button>`).join('')||'<span class="note">なし</span>';
+  $('#follows').innerHTML=(S.follows||[]).map((f,i)=>`<button class="chip" data-rm="${i}">${f.type==='author'?'著者':'シリーズ'}：${esc(f.q)} <i>×</i></button>`).join('');
+  if(!NEWS_RUN&&N){m.className='msg'+(N.fail?' err':'');m.textContent=N.fail?'新刊情報に接続できませんでした。少し待って「今すぐ確認」を押してください':N.items.length?`${N.items.length}冊見つかりました（持っている本は除いています）`:'最近の新刊は見つかりませんでした'}
+  const items=N?.items||[];
+  $('#news').innerHTML=items.map((n,i)=>`<div class="rel">${faceHTML(n,100)}<div><b>${esc(n.title)}</b>${n.pubdate>today?'<span class="badge">発売予定</span>':''}
+    <div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}</div><div class="d">${esc(n.label)}　<button class="chip" style="min-height:30px;padding:2px 10px" data-mute="${i}">この${n.key[0]==='a'?'著者':'シリーズ'}を追わない</button></div></div>
+    <button data-n="${i}">追加</button></div>`).join('');}
+$('#news').onclick=e=>{const items=S.news?.items||[];const today=new Date().toISOString().slice(0,10);
+  const mu=e.target.closest('[data-mute]');if(mu){const n=items[+mu.dataset.mute];S.mute=[...new Set([...(S.mute||[]),n.key])];S.news.items=items.filter(x=>x.key!==n.key);save();renderNews();renderBadge();toast('次から追いません');return}
+  const b=e.target.closest('[data-n]');if(!b)return;const n=items[+b.dataset.n];const{key,label,...rest}=n;addBook({...rest,status:n.pubdate>today?'wish':'unread'})};
+$('#mutes').onclick=e=>{const b=e.target.closest('[data-um]');if(b){S.mute.splice(+b.dataset.um,1);save();renderNews()}};
+$('#follows').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){S.follows.splice(+b.dataset.rm,1);save();renderNews()}};
+$('#fadd').onclick=()=>{const q=$('#fq').value.trim();if(!q)return;S.follows=S.follows||[];S.follows.push({q,type:$('#ft').value});$('#fq').value='';save();renderNews();toast('追加しました。「今すぐ確認」で探せます')};
 $('#fq').onkeydown=e=>{if(e.key==='Enter')$('#fadd').click()};
-$('#fcheck').onclick=async()=>{const m=$('#nmsg');m.className='msg';if(!S.follows.length){m.textContent='先に著者かシリーズをフォローしてください';return}
-  m.textContent='確認中…';$('#news').innerHTML='';
-  const since=new Date(Date.now()-90*864e5).toISOString().slice(0,10);const owned=new Set(Object.values(S.books).map(b=>b.isbn));
-  const seen=new Set();const out=[];let fail=0;
-  for(const f of S.follows){
-    try{const items=await ndl(`${f.type==='author'?'creator':'title'}=${encodeURIComponent(f.q)}&from=${since.slice(0,7)}&cnt=80`);
-      for(const n of items){if(!n.isbn||n.pubdate<since.slice(0,7)||seen.has(n.isbn))continue;seen.add(n.isbn);out.push({f:f.q,...n})}
-    }catch(e){fail++}}
-  out.sort((a,b)=>b.pubdate.localeCompare(a.pubdate));const today=new Date().toISOString().slice(0,10);
-  m.textContent=fail===S.follows.length?'新刊情報に接続できませんでした（ネット接続か、この環境で外部APIが使えない可能性があります）':`${out.length}件見つかりました（${since}以降）`;
-  if(fail===S.follows.length)m.classList.add('err');
-  $('#news').innerHTML=out.map((n,i)=>`<div class="rel">${faceHTML(n,100)}<div><b>${esc(n.title)}</b>${n.pubdate>today?'<span class="badge">発売予定</span>':''}${owned.has(n.isbn)?'<span class="badge own">所持</span>':''}
-    <div class="d">${esc(n.author)}・${esc(n.publisher)}・${esc(n.pubdate)}　フォロー：${esc(n.f)}</div></div>
-    ${owned.has(n.isbn)?'':`<button data-n="${i}">追加</button>`}</div>`).join('');
-  $('#news').onclick=e=>{const b=e.target.closest('[data-n]');if(!b)return;const n=out[+b.dataset.n];const{f,...rest}=n;addBook({...rest,status:n.pubdate>today?'wish':'unread'})};
-};
-
+$('#fcheck').onclick=()=>checkNews();
+const newsStale=()=>!S.news||Date.now()-S.news.t>12*3600e3;
 /* ---- データ入出力 ---- */
 $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</button><h2>データ</h2>
   <p class="msg">蔵書はこのブラウザの中（localStorage）に保存されています。別の端末へ移す時やバックアップには書き出しを使ってください。</p>
@@ -562,12 +581,14 @@ $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</butt
 };
 
 /* ---- 画面切替 ---- */
-function renderAll(){renderShelf();renderList();renderFollows()}
+function renderAll(){renderShelf();renderList();renderNews();renderBadge()}
 function show(v){for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
-  for(const s of ['shelf','list','news'])$('#v-'+s).hidden=s!==v;if(location.hash!=='#'+v)history.replaceState(null,'','#'+v)}
+  for(const s of ['shelf','list','news'])$('#v-'+s).hidden=s!==v;if(location.hash!=='#'+v)history.replaceState(null,'','#'+v);
+  if(v==='news'){if(newsStale())checkNews();S.newsSeen=(S.news?.items||[]).map(x=>x.isbn);save();setTimeout(renderBadge,1500)}}
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)};
 addEventListener('hashchange',()=>show(location.hash.slice(1)||'shelf'));
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(newsStale()&&Object.keys(S.books).length)setTimeout(()=>checkNews(),2500);
 renderAll();show(['shelf','list','news'].includes(location.hash.slice(1))?location.hash.slice(1):'shelf');
 }
 </script>
