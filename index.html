@@ -224,12 +224,13 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .dsgn button[aria-pressed=true]{outline:3px solid var(--acc);font-weight:700}
 .sw{display:block;width:56px;height:40px;border-radius:4px;background:linear-gradient(180deg,var(--back) 0 70%,var(--woodhi) 70% 78%,var(--wood) 78%);border:4px solid var(--wood)}
 .more.dot,#ioBtn.dot{position:relative}.more.dot::after,#ioBtn.dot::after{content:"";position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--acc)}
+.actrow{display:flex;align-items:center;gap:10px}.actrow label{flex:none;width:6em;margin:0}.actrow select{flex:1}
 </style>
 </head>
 <body>
 <header>
   <div class="mwrap gearwrap"><button id="gearBtn" class="more" aria-label="設定" aria-expanded="false"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
-  <div class="menu" id="gearMenu" hidden style="left:0;right:auto"><button id="ioBtn">データ</button><button id="helpBtn">使い方</button></div></div>
+  <div class="menu" id="gearMenu" hidden style="left:0;right:auto"><button id="actBtn">本の操作</button><button id="ioBtn">データ</button><button id="helpBtn">使い方</button></div></div>
   <div class="ttlwrap"><span class="ttlbox"><span id="caseName" class="ttl"></span><select id="caseSel" aria-label="本棚を選ぶ"></select></span>
       <div class="mwrap"><button id="caseMore" class="more" aria-label="本棚のメニュー" aria-expanded="false">…</button>
       <div class="menu" id="caseMenu" hidden>
@@ -633,7 +634,8 @@ function endDrag(){if(!D)return;clearTimeout(D.timer);clearTimeout(D.ft);$('#cas
 document.addEventListener('pointerdown',e=>{
   const bk=e.target.closest('#v-shelf .bk,#v-read .bk');if(!bk||e.button>0)return;
   D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse',nodrag:!!VIEW&&!!bk.closest('#v-shelf')};
-  if(D.touch&&!D.nodrag){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;bk.classList.add('lift');navigator.vibrate?.(12);startDrag(d.lx??d.x,d.ly??d.y)},400)}
+  if(D.touch&&!D.nodrag){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;bk.classList.add('lift');navigator.vibrate?.(12);d.lp=true;startDrag(d.lx??d.x,d.ly??d.y);d.lpx=d.lx??d.x;d.lpy=d.ly??d.y},400)}
+  else if(D.touch&&(S.act?.lp||'move')!=='move'){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;navigator.vibrate?.(12);D=null;doAct(S.act.lp,d.id)},450)}
 });
 document.addEventListener('touchmove',e=>{if(D?.on)e.preventDefault()},{passive:false});
 document.addEventListener('contextmenu',e=>{if(e.target.closest('.bk'))e.preventDefault()});
@@ -658,7 +660,9 @@ document.addEventListener('pointermove',e=>{
 },{passive:false});
 document.addEventListener('pointerup',()=>{
   if(!D)return;const d=D;endDrag();D=null;
-  if(!d.on){if(SELMODE){SEL.has(d.id)?SEL.delete(d.id):SEL.add(d.id);renderSel()}else openBook(d.id);return}
+  if(!d.on){if(SELMODE){SEL.has(d.id)?SEL.delete(d.id):SEL.add(d.id);renderSel()}else tapBook(d.id);return}
+  // 長押しして動かさずに離した時は「長押し」の操作
+  if(d.lp&&!d.to&&Math.hypot((d.lx??d.lpx)-d.lpx,(d.ly??d.lpy)-d.lpy)<10){renderShelf();const a=S.act?.lp||'move';if(a!=='move')doAct(a,d.id);return}
   if(d.to){const ids=d.group?d.group.sort(byVol):[d.id];const was=new Set(ids.filter(isLocked));for(const id of ids)removeEverywhere(id);const L=listOf(d.to.sid);const at=d.to.ref?L.indexOf(d.to.ref):L.length;L.splice(at<0?L.length:at,0,...ids);
     // 置いた棚で状態も変える：積読の棚→積読、読書中の棚→読書中、積読・読書中の棚から外へ出したら読了
     const to={tsun:'unread',reading:'reading',wish:'wish'}[d.to.sid];let ch=0;for(const id of ids){const b=S.books[id];const ns=to||(was.has(id)?'done':b.status);if(b.status!==ns){b.status=ns;ch++}}
@@ -666,6 +670,22 @@ document.addEventListener('pointerup',()=>{
     const msg=ch?`${ids.length>1?ids.length+'冊を':''}「${ST[to||'done']}」にしました`:d.group?`${ids.length}冊を巻数順に移動しました`:'';if(msg)toast(msg)}
   renderShelf();
 });
+/* 本の操作：1回タップ・2回タップ・長押しに好きな操作を割り当てる（⚙→本の操作） */
+const ACTS={open:'詳細を開く',reading:'読書中にする',done:'読了にする',unread:'積読にする',flip:'表紙と背表紙を切り替える',move:'動かす',none:'何もしない'};
+const actOf=k=>({tap:'open',dbl:'none',lp:'move',...(S.act||{})})[k];
+let TAPB=null;
+function tapBook(id){const dbl=actOf('dbl');if(dbl==='none')return doAct(actOf('tap'),id);
+  if(TAPB&&TAPB.id===id){clearTimeout(TAPB.t);TAPB=null;return doAct(dbl,id)}
+  if(TAPB){clearTimeout(TAPB.t);doAct(actOf('tap'),TAPB.id)}
+  TAPB={id,t:setTimeout(()=>{TAPB=null;doAct(actOf('tap'),id)},280)}}
+function doAct(a,id){const b=S.books[id];if(!b)return;
+  if(a==='open')return openBook(id);
+  if(a==='flip'){b.mode=b.mode==='face'?'spine':'face';save();renderShelf();return toast(b.mode==='face'?'表紙で飾ります':'背表紙で並べます')}
+  if(['reading','done','unread'].includes(a)){if(b.status===a)return toast(`もう「${ST[a]}」です`);b.status=a;placeByStatus(b);save();renderAll();return toast(`「${b.title}」を${ST[a]}にしました`)}}
+$('#actBtn').onclick=()=>{const row=(k,lab,opts)=>`<div class="fld actrow"><label>${lab}</label><select data-act="${k}">${opts.map(o=>`<option value="${o}" ${actOf(k)===o?'selected':''}>${ACTS[o]}</option>`).join('')}</select></div>`;
+  const base=['open','reading','done','unread','flip','none'];
+  openPanel(`<button class="x" data-close>閉じる</button><h2>本の操作</h2>${row('tap','1回タップ',base)}${row('dbl','2回タップ',base)}${row('lp','長押し',['move',...base])}<p class="note">2回タップを使うと、1回タップの反応が少しだけ遅くなります。長押しのあとに指を動かすと、いつでも本を動かせます。</p>`);
+  panel.onchange=e=>{const k=e.target.dataset.act;if(!k)return;S.act={...(S.act||{}),[k]:e.target.value};save();toast('保存しました')}};
 document.addEventListener('pointercancel',()=>{if(!D)return;const on=D.on;endDrag();D=null;if(on)renderShelf()});
 document.addEventListener('keydown',e=>{const bk=e.target.closest?.('.bk');if(bk&&e.key==='Enter')openBook(bk.dataset.id);if(e.key==='Escape')closePanel()});
 
@@ -1146,7 +1166,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v75';let updAt=0;
+const APP_V='hondana-v76';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
