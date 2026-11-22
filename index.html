@@ -241,7 +241,7 @@ const curCase=()=>S.cases.find(c=>c.id===S.cur);
 
 /* ---- シリーズと巻数（書名の末尾の数字・上中下から自動判定。詳細画面で直せる） ---- */
 const z2h=t=>String(t||'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
-const VOL_RE=/[\s　]*(?:[（(［\[]\s*)?(?:第|vol\.?|Vol\.?|VOL\.?|#)?\s*(\d{1,4}|上|中|下)\s*(?:巻|集|号)?\s*(?:[)）］\]])?\s*$/;
+const VOL_RE=/[\s　]*(?:[（(［\[]\s*)?(?:第|巻|vol\.?|Vol\.?|VOL\.?|#)?\s*(\d{1,4}|上|中|下)\s*(?:巻|集|号)?\s*(?:[)）］\]])?\s*$/;
 function volOf(b){if(b.vol!==undefined&&b.vol!=='')return parseFloat(z2h(b.vol))||0;const m=z2h(b.title).match(VOL_RE);if(!m)return 0;return {上:1,中:2,下:3}[m[1]]||parseInt(m[1])}
 function seriesOf(b){if(b.series)return b.series.trim();const t=z2h(b.title);const m=t.match(VOL_RE);return (m?t.slice(0,m.index):t).replace(/[\s　.,:：・-]+$/,'').trim()}
 const byVol=(a,b)=>seriesOf(S.books[a]).localeCompare(seriesOf(S.books[b]),'ja')||volOf(S.books[a])-volOf(S.books[b]);
@@ -420,7 +420,7 @@ async function ndl(qs){let r;for(let k=0;k<3;k++){r=await fetch('https://ndlsear
     return {isbn,title:[g(i,'dc:title')||g(i,'title'),g(i,'dcndl:volume')].filter(Boolean).join(' '),author:[...i.getElementsByTagName('dc:creator')].map(e=>ndlName(e.textContent)).filter((v,k,a)=>a.indexOf(v)===k).join('・'),
       publisher:g(i,'dc:publisher'),pubdate:ndlDate(g(i,'dcterms:issued')),cover:''}})}
 const fmtDate=d=>{d=String(d||'');return d.length===8?`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`:d.length===6?`${d.slice(0,4)}-${d.slice(4)}`:d};
-function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...pre};
+function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...pre};
   openPanel(`<button class="x" data-close>閉じる</button><h2>本を追加</h2>
    <button class="pri" id="scanBtn" style="width:100%;min-height:52px">カメラでバーコードを読み取る</button>
    <button id="bulkBtn" style="width:100%;margin-top:8px">何冊も続けて読み取る（まとめて登録）</button>
@@ -431,6 +431,7 @@ function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',
    <div class="fld"><label>またはタイトル・著者などのキーワードで探す</label><div style="display:flex;gap:8px"><input id="kw" type="search" enterkeyhint="search" placeholder="例：かがみの孤城 辻村"><button id="kwBtn">探す</button></div></div>
    <div id="kres"></div>
    <p class="msg" id="lmsg">openBD → Google Books → 国立国会図書館サーチの順に探します。見つからなければ下に手入力してください。</p>
+   <div id="serBox"></div>
    <div id="fwrap">${form(b)}</div>
    <div class="fld"><label>置き場所</label><select id="where"><option value="tray">未配置</option>${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
    <div class="btns"><button class="pri" id="aSave">追加する</button><button id="aNext">追加して次を読み取る</button></div>`);
@@ -442,7 +443,7 @@ function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',
     const r=await lookup(isbn);readForm(b);b.isbn=isbn;
     if(r){Object.assign(b,r);delete b.src;if(!dup)m.textContent=`${r.src} で見つかりました。内容を確認して追加してください。`}
     else{m.textContent='見つかりませんでした（またはこの環境では外部APIに接続できません）。手入力してください。';m.classList.add('err')}
-    $('#fwrap').innerHTML=form(b);bindImg(b)};
+    $('#fwrap').innerHTML=form(b);bindImg(b);showSeries(b)};
   $('#scanBtn').onclick=()=>{primeSound();$('#lmsg').className='msg';$('#lmsg').textContent='本の裏表紙の「978」で始まるバーコードを枠に入れてください';scan(code=>{$('#isbn').value=code;go()})};
   $('#photoBtn').onclick=()=>{const i=$('#photoIn');i.value='';i.onchange=async()=>{const f=i.files[0];if(!f)return;const m=$('#lmsg');m.className='msg';m.textContent='写真から読み取り中…';
     const code=await scanPhoto(f);if(code){$('#isbn').value=code;go()}else{m.textContent='写真から978で始まるバーコードが見つかりませんでした。バーコードを大きく、まっすぐ、ピントを合わせて撮ってください。';m.classList.add('err')}};i.click()};
@@ -460,11 +461,34 @@ function addBook(pre){const b={id:uid(),isbn:'',title:'',author:'',publisher:'',
   $('#kwBtn').onclick=kwgo;$('#kw').onkeydown=e=>{if(e.key==='Enter')kwgo()};
   $('#look').onclick=go;$('#isbn').onkeydown=e=>{if(e.key==='Enter')go()};
   const save1=()=>{readForm(b);if(!b.title){toast('タイトルを入れてください');return false}
-    S.books[b.id]=b;const w=$('#where').value;listOf(w).push(b.id);S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(`「${b.title}」を追加しました`);return true};
+    const w=$('#where').value;const extra=(SER.list||[]).filter((x,i)=>SER.on.has(i)).map(x=>({id:uid(),isbn:x.isbn,title:x.title,author:x.author||b.author,publisher:x.publisher,pubdate:x.pubdate,status:b.status,mode:'spine',memo:'',cover:'',added:Date.now(),series:b.series||''}));
+    const all=[b,...extra].sort((x,y)=>volOf(x)-volOf(y));for(const x of all){S.books[x.id]=x}listOf(w).push(...all.map(x=>x.id));
+    S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(extra.length?`「${seriesOf(b)}」${all.length}冊を追加しました`:`「${b.title}」を追加しました`);return true};
   $('#aSave').onclick=save1;
   $('#aNext').onclick=()=>{if(save1())setTimeout(()=>addBook({autoscan:true}),300)};
   if(S.lastWhere&&listOf(S.lastWhere))$('#where').value=S.lastWhere;
 }
+/* シリーズのほかの巻：国立国会図書館サーチで同じシリーズ名・同じ出版社の巻を集める */
+let SER={list:[],on:new Set()};
+async function findSeries(b){const ser=seriesOf(b),key=normKey(ser);if(!ser||!volOf(b))return [];
+  const owned=new Set(Object.values(S.books).map(x=>x.isbn));owned.add(b.isbn);const byVol=new Map();
+  for(const n of await ndl('title='+encodeURIComponent(ser)+'&cnt=300')){const v=volOf(n);
+    if(!n.isbn||!v||owned.has(n.isbn)||normKey(seriesOf(n))!==key)continue;
+    if(b.publisher&&n.publisher&&!n.publisher.includes(b.publisher.slice(0,2))&&!b.publisher.includes(n.publisher.slice(0,2)))continue;
+    if(!byVol.has(v)||String(n.pubdate)<String(byVol.get(v).pubdate))byVol.set(v,n)}
+  return [...byVol.values()].sort((x,y)=>volOf(x)-volOf(y))}
+async function showSeries(b){const box=$('#serBox');SER={list:[],on:new Set()};if(!box)return;box.innerHTML='';const v0=volOf(b);if(!v0)return;
+  box.innerHTML='<p class="msg">同じシリーズのほかの巻を探しています…</p>';let L=[];try{L=await findSeries(b)}catch(e){}
+  if(!$('#serBox'))return;if(!L.length){box.innerHTML='';return}SER.list=L;
+  const draw=()=>{box.innerHTML=`<div class="fld" style="border:1px solid var(--line);border-radius:12px;padding:10px"><label style="font-weight:700;color:var(--ink)">「${esc(seriesOf(b))}」のほかの巻もまとめて登録（${SER.on.size}冊選択）</label>
+    <div class="btns" style="margin:6px 0"><button data-s="upto">1〜${v0}巻</button><button data-s="all">全部</button><button data-s="none">なし</button></div>
+    <div class="follow">${L.map((x,i)=>`<button class="chip" data-i="${i}" aria-pressed="${SER.on.has(i)}" style="${SER.on.has(i)?'background:var(--acc);color:#fff;border-color:var(--acc)':''}">${volOf(x)}巻</button>`).join('')}</div>
+    <p class="msg" style="margin:0">持っている巻をタップして選ぶと、「追加する」で一緒に登録します（まだ登録していない巻だけ出しています）</p></div>`};
+  box.onclick=e=>{const c=e.target.closest('[data-i]'),s=e.target.closest('[data-s]');
+    if(c){const i=+c.dataset.i;SER.on.has(i)?SER.on.delete(i):SER.on.add(i)}
+    if(s){SER.on=new Set(L.map((x,i)=>i).filter(i=>s.dataset.s==='all'||(s.dataset.s==='upto'&&volOf(L[i])<v0)))}
+    if(c||s)draw()};
+  draw()}
 /* バーコード読み取り：ZXing-C++ (zxing-wasm) を同梱して使う。iPhone の Safari でも同じ仕組みで読める */
 const ISBN_RE=/^97[89]\d{10}$/;
 const ZOPT={formats:['EAN13'],tryHarder:true,tryRotate:true,tryInvert:false,maxNumberOfSymbols:4};
