@@ -111,6 +111,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .badge.own{background:var(--ok)}
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
+.help h3{font-size:16px;margin:18px 0 6px}.help ul{margin:0;padding-left:1.2em}.help li{margin:0 0 8px;line-height:1.6;font-size:15px}
 #viewer{position:fixed;inset:0;z-index:35;overflow:auto;background:var(--wall);padding:14px max(3vw,14px) 40px}
 #viewer .vhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}#viewer h2{margin:0;font-size:20px;flex:1 1 200px}
 #viewer .bk{cursor:pointer}
@@ -131,7 +132,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
  :root{--k:.82}
  .spine .ti{font-size:11.5px;letter-spacing:0}.spine .au{font-size:9px}
  #v-shelf>.note{font-size:12px;margin:0 0 8px}
- h1{font-size:21px;margin:0}header{gap:8px}header .pri{padding:8px 12px}
+ h1{font-size:21px;margin:0}header{gap:8px}header .pri{padding:8px 12px}header{gap:6px;flex-wrap:nowrap}header h1{font-size:17px;white-space:nowrap}header .pri,#ioBtn,#helpBtn{padding:8px 9px;font-size:14px;white-space:nowrap}
  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;gap:0;flex-wrap:nowrap;background:var(--panel);border-top:1px solid var(--line);padding:4px 6px calc(4px + env(safe-area-inset-bottom))}
  .tabs button{flex:1;border:0;border-radius:10px;min-height:48px;font-size:14px;background:none}
  .tabs button[aria-pressed=true]{background:var(--ink);color:var(--wall)}
@@ -160,6 +161,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
   <span class="sp"></span>
   <button class="pri" id="addBtn">＋ 本を追加</button>
   <button id="ioBtn">データ</button>
+  <button id="helpBtn">使い方</button>
 </header>
 
 <main>
@@ -175,7 +177,6 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <button id="serDrag" aria-pressed="true">シリーズまとめて動かす</button>
       <button id="selMode" aria-pressed="false">まとめて選ぶ</button>
     </div>
-    <p class="note">本を長押し（パソコンはドラッグ）すると持ち上がり、好きな段・位置へ動かせます。マンガなど同じ段にある同じシリーズは、まとめて巻数順に動きます（1冊だけ動かしたいときは「シリーズまとめて動かす」をオフに）。タップで詳細を開き「表紙を見せて飾る」にすると面陳になります。</p>
     <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button>
       <p class="note" style="flex-basis:100%;margin:0">本をタップして選び、選んだ本のどれかを長押し（パソコンはドラッグ）すると、まとめて動かせます。</p></div>
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
@@ -740,6 +741,28 @@ $('#fq').onkeydown=e=>{if(e.key==='Enter')$('#fadd').click()};
 $('#fcheck').onclick=()=>checkNews();
 const newsStale=()=>!S.news||Date.now()-S.news.t>12*3600e3;
 /* ---- データ入出力 ---- */
+$('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</button><h2>使い方</h2><div class="help">
+  <h3>本を登録する</h3><ul>
+  <li>右上の「＋ 本を追加」から、バーコードを読み取るか、書名や著者名で探して登録します。</li>
+  <li>「何冊も続けて読み取る」を使うと、バーコードを次々に読み取ってまとめて登録できます。</li>
+  <li>マンガなど巻数のある本を1冊読み込むと、同じシリーズでまだ登録していない巻が出てきます。持っている巻を選ぶと一緒に登録できます。</li></ul>
+  <h3>本を並べる</h3><ul>
+  <li>本を長押しすると持ち上がります。そのまま好きな段・位置へ動かせます（パソコンはドラッグ）。</li>
+  <li>同じ段にある同じシリーズは、まとめて巻数順に動きます。1冊だけ動かしたいときは「シリーズまとめて動かす」をオフにします。</li>
+  <li>「まとめて選ぶ」で本をタップして選ぶと、まとめて動かしたり、巻数順に並べたり、色を変えたりできます。</li>
+  <li>本をタップすると詳細が開きます。「表紙を見せて飾る」にすると表紙が見える置き方になります。背表紙の色もここで変えられます（同じシリーズにまとめて使えます）。</li>
+  <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
+  <h3>新刊チェック</h3><ul>
+  <li>本棚にある本のシリーズと著者から、新しく出た本と発売予定の本を自動で探します。</li>
+  <li>興味のないものは「この著者を追わない」などを押すと、次から出なくなります。</li></ul>
+  <h3>人に見せる</h3><ul>
+  <li>「画像で保存」：本棚を3段ずつ画像にして、写真に保存したりLINEで送ったりできます。</li>
+  <li>「共有リンク」：今の本棚をリンクにして送れます。相手は見るだけで、変更はできません。リンクを知っている人なら誰でも見られるので、送る相手は選んでください。</li></ul>
+  <h3>データについて</h3><ul>
+  <li>本のデータはこのiPhoneのSafariの中だけに保存されます。ほかの端末とは自動では同期しません。</li>
+  <li>ホーム画面に追加したアプリと、Safariで開いたページは、データが別々です。どちらか一方を使ってください。</li>
+  <li>機種変更やバックアップのときは「データ」→「ファイルに書き出す」で保存し、新しい端末で「ファイルから読み込む」を使います。</li>
+  <li>表示が古いときは、ページを閉じて開き直すと新しい版になります。</li></ul></div>`);
 $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</button><h2>データ</h2>
   <p class="msg">蔵書はこのブラウザの中（localStorage）に保存されています。別の端末へ移す時やバックアップには書き出しを使ってください。</p>
   <div class="btns"><button class="pri" id="ex">ファイルに書き出す</button><button id="cp">JSONをコピー</button><button id="im">ファイルから読み込む</button><button id="clr">空にする</button></div>`);
