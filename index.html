@@ -202,6 +202,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
  .rel{grid-template-columns:60px minmax(0,1fr) auto}.rel .face{--fh:84px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.btns.col{flex-direction:column;align-items:stretch}.btns.col button{padding:14px;font-size:1rem;text-align:right}.btns.col button:disabled{opacity:.45}
 </style>
 </head>
 <body>
@@ -233,7 +234,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 
 <main>
   <section id="v-shelf">
-    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selStatus">状態を変える</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button></div>
+    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selStatus">状態を変える</button><button id="selMove">別の本棚へ</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button></div>
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
     <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。「＋ 追加」から登録できます。</p>
     <div class="viewbar" id="viewBar" hidden><span id="viewTxt"></span><button id="viewOff">元の本棚に戻す</button></div>
@@ -458,6 +459,17 @@ $('#selColor').onclick=()=>{if(!SEL.size)return toast('先に本を選んでく�
 $('#selStatus').onclick=()=>{if(!SEL.size)return toast('先に本を選んでください');
   openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の状態を変える</h2><div class="btns">${Object.entries(ST).map(([k,v])=>`<button data-st="${k}">${v}</button>`).join('')}</div>`);
   panel.querySelector('.btns').onclick=e=>{const k=e.target.closest('[data-st]')?.dataset.st;if(!k)return;for(const id of SEL){const b=S.books[id];if(!b)continue;b.status=k;placeByStatus(b)}SEL.clear();save();renderShelf();renderSel();closePanel();toast(`${ST[k]}にしました`)}};
+/* 別の本棚へ移す：移動先の本棚の一番下の段の最後に入る。積読・読書中・読みたいの本は読了になる */
+const caseOf=id=>S.cases.find(c=>c.shelves.some(s=>s.books.includes(id)));
+function moveToCase(ids,done){ids=ids.filter(id=>S.books[id]);if(!ids.length)return toast('先に本を選んでください');
+  const one=ids.length===1,from=one?caseOf(ids[0]):null;
+  openPanel(`<button class="x" data-close>閉じる</button><h2>${one?esc(S.books[ids[0]].title):ids.length+'冊'}を移す本棚</h2><div class="btns col" id="mvList">${S.cases.map(c=>`<button data-c="${c.id}"${c===from?' disabled':''}>${esc(c.name)}${c===from?'（今ここ）':''}</button>`).join('')}<button data-c="new">＋ 新しい本棚を作って移す</button></div>`);
+  const go=c=>{for(const id of ids){const b=S.books[id];removeEverywhere(id);if(LOCK[b.status])b.status='done';c.shelves[c.shelves.length-1].books.push(id)}
+    save();renderAll();closePanel();done?.();toast(`「${c.name}」に${one?'':ids.length+'冊'}移しました`)};
+  $('#mvList').onclick=e=>{const k=e.target.closest('[data-c]')?.dataset.c;if(!k)return;
+    if(k==='new')return ask('新しい本棚の名前','寝室の本棚',v=>{const c={id:uid(),name:v,shelves:[1,2,3].map(n=>({id:uid(),name:n+'段目',books:[]}))};S.cases.push(c);go(c)});
+    go(S.cases.find(c=>c.id===k))}}
+$('#selMove').onclick=()=>moveToCase([...SEL],()=>{SEL.clear();SELMODE=false;renderSel()});
 $('#selSeries').onclick=()=>{if(!SEL.size)return toast('先にシリーズの本を1冊タップしてください');const ser=new Set([...SEL].map(id=>seriesOf(S.books[id])));
   for(const b of Object.values(S.books))if(ser.has(seriesOf(b))&&placeOf(b.id))SEL.add(b.id);renderSel();toast(`${SEL.size}冊を選びました`)};
 $('#selSort').onclick=()=>{if(SEL.size<2)return toast('2冊以上選んでください');
@@ -672,9 +684,10 @@ function shrink(f,max=360,ratio=false){return new Promise(r=>{const img=new Imag
 
 function openBook(id){const b=S.books[id];if(!b)return;const tmp={...b};
   openPanel(`<button class="x" data-close>閉じる</button><h2>${esc(b.title)}</h2><p class="msg">場所：${esc(placeOf(id))}</p>${form(tmp)}
-   <div class="btns act"><button class="pri" id="bSave">保存</button><button id="bDel">削除</button></div>`);
+   <div class="btns act"><button class="pri" id="bSave">保存</button><button id="bMove">別の本棚へ</button><button id="bDel">削除</button></div>`);
   bindImg(tmp);
   $('#bSave').onclick=()=>{readForm(tmp);S.books[id]=tmp;if(tmp.status!==b.status)placeByStatus(tmp);save();renderAll();closePanel();toast('保存しました')};
+  $('#bMove').onclick=()=>moveToCase([id]);
   $('#bDel').onclick=()=>confirmP(`「${b.title}」を蔵書から削除します。`,()=>{removeEverywhere(id);delete S.books[id];save();renderAll()});
 }
 
@@ -1071,7 +1084,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v67';let updAt=0;
+const APP_V='hondana-v68';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
