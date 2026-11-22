@@ -111,6 +111,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .badge.own{background:var(--ok)}
 .toast{position:fixed;left:50%;bottom:20px;translate:-50%;background:var(--ink);color:var(--wall);padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.on{opacity:1}
+.lockshelf h3 .note{font-weight:400;font-size:12px;margin:0 0 0 6px}.row.locked .bk{cursor:pointer}.row.locked .bk:hover{transform:none}
+#readGather button,#tsunGather button{margin:0 0 6px;font-size:13px}
 #updBar{position:fixed;left:50%;translate:-50%;bottom:calc(84px + env(safe-area-inset-bottom));z-index:45;display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 10px 8px 14px;box-shadow:0 8px 24px #0004;white-space:nowrap}#updBar[hidden]{display:none}
 .help h3{font-size:16px;margin:18px 0 6px}.help ul{margin:0;padding-left:1.2em}.help li{margin:0 0 8px;line-height:1.6;font-size:15px}
 #viewer{position:fixed;inset:0;z-index:35;overflow:auto;background:var(--wall);padding:14px max(3vw,14px) 40px}
@@ -178,7 +180,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <button id="serDrag" aria-pressed="true">シリーズまとめて動かす</button>
       <button id="selMode" aria-pressed="false">まとめて選ぶ</button>
     </div>
-    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button>
+    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selStatus">状態を変える</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button>
       <p class="note" style="flex-basis:100%;margin:0">本をタップして選び、選んだ本のどれかを長押し（パソコンはドラッグ）すると、まとめて動かせます。</p></div>
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
     <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。右上の「＋ 本を追加」から、バーコードやキーワードで登録できます。</p>
@@ -187,6 +189,10 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
       <h3>未配置の本</h3>
       <div class="row" id="tray" data-shelf="tray"></div>
     </div>
+    <div class="tray lockshelf"><h3>読書中 <span class="note" id="readN"></span></h3><div id="readGather"></div>
+      <div class="row locked" id="readRow" data-shelf="reading"></div></div>
+    <div class="tray lockshelf"><h3>積読 <span class="note" id="tsunN"></span></h3><div id="tsunGather"></div>
+      <div class="row locked" id="tsunRow" data-shelf="tsun"></div></div>
   </section>
 
   <section id="v-list" class="sec" hidden>
@@ -294,10 +300,25 @@ function renderShelf(){renderSampleBar();renderSerDrag();
     <div class="row" data-shelf="${s.id}">${s.books.map(bookHTML).join('')||'<span class="empty">ここに本をドラッグ</span>'}</div><div class="board"></div></div>`).join('');
   S.tray=S.tray.filter(id=>S.books[id]);
   $('#tray').innerHTML=S.tray.map(bookHTML).join('')||'<span class="empty">ここに置いた本は本棚に並びません</span>';
+  for(const [k,st,row,nEl,gEl,lab,emp] of [['reading','reading','#readRow','#readN','#readGather','読書中','「読書中」にした本がここに入ります'],['tsun','unread','#tsunRow','#tsunN','#tsunGather','積読','「積読」にした本が登録順にここに入ります']]){
+    const L=listOf(k);for(const id of [...L]){const b=S.books[id];if(!b||b.status!==st){L.splice(L.indexOf(id),1);if(b&&!placeOf(id))S.tray.push(id)}}L.sort(byAdded);
+    $(row).innerHTML=L.map(bookHTML).join('')||`<span class="empty">${emp}</span>`;$(nEl).textContent=L.length?`${L.length}冊・読了にすると「未配置」に移ります`:'';
+    const out=Object.values(S.books).filter(b=>b.status===st&&!L.includes(b.id));
+    $(gEl).innerHTML=out.length?`<button data-gather="${k}">ほかの場所にある${lab}の本（${out.length}冊）もここに集める</button>`:''}
 }
-const listOf=sid=>sid==='tray'?S.tray:S.cases.flatMap(c=>c.shelves).find(s=>s.id===sid)?.books;
-function removeEverywhere(id){S.tray=S.tray.filter(x=>x!==id);for(const c of S.cases)for(const s of c.shelves)s.books=s.books.filter(x=>x!==id)}
-function placeOf(id){if(S.tray.includes(id))return '未配置';for(const c of S.cases)for(const s of c.shelves)if(s.books.includes(id))return `${c.name} / ${s.name}`;return ''}
+document.addEventListener('click',e=>{const g=e.target.closest('[data-gather]');if(!g)return;const k=g.dataset.gather,st=k==='tsun'?'unread':'reading';
+  const out=Object.values(S.books).filter(b=>b.status===st&&!listOf(k).includes(b.id));
+  confirmP(`本棚や未配置にある「${ST[st]}」の本${out.length}冊を、${ST[st]}の棚に移します。読了にすると「未配置」に戻ります。`,()=>{for(const b of out)placeByStatus(b);save();renderShelf();toast(`${out.length}冊を移しました`)})});
+const listOf=sid=>sid==='tray'?S.tray:sid==='tsun'?(S.tsun??=[]):sid==='reading'?(S.reading??=[]):S.cases.flatMap(c=>c.shelves).find(s=>s.id===sid)?.books;
+function removeEverywhere(id){S.tray=S.tray.filter(x=>x!==id);S.tsun=(S.tsun||[]).filter(x=>x!==id);S.reading=(S.reading||[]).filter(x=>x!==id);for(const c of S.cases)for(const s of c.shelves)s.books=s.books.filter(x=>x!==id)}
+/* 積読・読書中の棚：状態で自動的に置き場所が決まり、読了になるまでドラッグでは動かせない */
+const LOCK={unread:'tsun',reading:'reading'};
+const isLocked=id=>(S.tsun||[]).includes(id)||(S.reading||[]).includes(id);
+const byAdded=(a,b)=>(S.books[a]?.added||0)-(S.books[b]?.added||0);
+function placeByStatus(b){const k=LOCK[b.status];
+  if(k){if(listOf(k).includes(b.id))return;removeEverywhere(b.id);listOf(k).push(b.id);listOf(k).sort(byAdded);return}
+  if(isLocked(b.id)){removeEverywhere(b.id);S.tray.push(b.id)}}
+function placeOf(id){if(S.tray.includes(id))return '未配置';if((S.tsun||[]).includes(id))return '積読の棚';if((S.reading||[]).includes(id))return '読書中の棚';for(const c of S.cases)for(const s of c.shelves)if(s.books.includes(id))return `${c.name} / ${s.name}`;return ''}
 
 /* まとめて選ぶ */
 let SELMODE=false;const SEL=new Set();
@@ -318,6 +339,9 @@ $('#selColor').onclick=()=>{if(!SEL.size)return toast('先に本を選んでく�
   pv();$('#mc').oninput=pv;$('#mt').oninput=pv;
   $('#mOk').onclick=()=>{for(const id of SEL){S.books[id].color=$('#mc').value;S.books[id].tcolor=$('#mt').value}save();renderShelf();renderSel();closePanel();toast('色を変えました')};
   $('#mReset').onclick=()=>{for(const id of SEL){delete S.books[id].color;delete S.books[id].tcolor;if(S.seriesStyle)delete S.seriesStyle[skey(S.books[id])]}save();renderShelf();renderSel();closePanel();toast('自動の色に戻しました')}};
+$('#selStatus').onclick=()=>{if(!SEL.size)return toast('先に本を選んでください');
+  openPanel(`<button class="x" data-close>閉じる</button><h2>${SEL.size}冊の状態を変える</h2><p class="msg">積読・読書中にするとそれぞれの棚へ、読了にすると積読・読書中の棚から「未配置」へ移ります。</p><div class="btns">${Object.entries(ST).map(([k,v])=>`<button data-st="${k}">${v}</button>`).join('')}</div>`);
+  panel.querySelector('.btns').onclick=e=>{const k=e.target.closest('[data-st]')?.dataset.st;if(!k)return;for(const id of SEL){const b=S.books[id];if(!b)continue;b.status=k;placeByStatus(b)}SEL.clear();save();renderShelf();renderSel();closePanel();toast(`${ST[k]}にしました`)}};
 $('#selSeries').onclick=()=>{if(!SEL.size)return toast('先にシリーズの本を1冊タップしてください');const ser=new Set([...SEL].map(id=>seriesOf(S.books[id])));
   for(const b of Object.values(S.books))if(ser.has(seriesOf(b))&&placeOf(b.id))SEL.add(b.id);renderSel();toast(`${SEL.size}冊を選びました`)};
 $('#selSort').onclick=()=>{if(SEL.size<2)return toast('2冊以上選んでください');
@@ -429,18 +453,19 @@ addEventListener('hashchange',openViewer);
 function sameShelfSeries(id){const b=S.books[id];if(!b||!volOf(b))return null;const k=skey(b);
   const sid=[...S.cases.flatMap(c=>c.shelves.map(x=>x.id)),'tray'].find(x=>listOf(x).includes(id));if(!sid)return null;
   const L=listOf(sid).filter(x=>S.books[x]&&skey(S.books[x])===k);return L.length>1?L:null}
+let lockAt=0;function lockMsg(){if(Date.now()-lockAt<1500)return;lockAt=Date.now();toast('積読・読書中の本は、読了にすると動かせます')}
 /* ドラッグ：マウスはそのまま、タッチは長押し（約0.4秒）で持ち上げる */
 let D=null;
 function startDrag(x,y){D.on=true;const r=D.el.getBoundingClientRect();D.dx=x-r.left;D.dy=y-r.top;
-  D.group=SEL.has(D.id)&&SEL.size>1?[...SEL]:(!SELMODE&&S.serDrag!==false)?sameShelfSeries(D.id):null;D.gs=new Set(D.group||[]);
+  D.group=SEL.has(D.id)&&SEL.size>1?[...SEL]:(!SELMODE&&S.serDrag!==false)?sameShelfSeries(D.id):null;if(D.group)D.group=D.group.filter(x=>!isLocked(x)||x===D.id);D.gs=new Set(D.group||[]);
   D.g=D.el.cloneNode(true);D.g.classList.remove('lift','sel');D.g.classList.add('ghost');if(D.group){D.g.insertAdjacentHTML('beforeend',`<span class="cnt">${D.group.length}冊</span>`);for(const el of document.querySelectorAll('#v-shelf .bk'))if(D.gs.has(el.dataset.id))el.classList.add('dragging')}document.body.append(D.g);
   D.g.style.left=r.left+'px';D.g.style.top=r.top+'px';D.el.classList.add('dragging');document.body.classList.add('dragging');
   D.m=document.createElement('div');D.m.className='mark'}
 function endDrag(){if(!D)return;clearTimeout(D.timer);D.el.classList.remove('lift','dragging');for(const el of document.querySelectorAll('#v-shelf .bk.dragging'))el.classList.remove('dragging');document.body.classList.remove('dragging');D.g?.remove();D.m?.remove()}
 document.addEventListener('pointerdown',e=>{
   const bk=e.target.closest('#v-shelf .bk');if(!bk||e.button>0)return;
-  D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse'};
-  if(D.touch){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;bk.classList.add('lift');navigator.vibrate?.(12);startDrag(d.lx??d.x,d.ly??d.y)},400)}
+  D={id:bk.dataset.id,el:bk,x:e.clientX,y:e.clientY,on:false,touch:e.pointerType!=='mouse',lock:!!bk.closest('.row.locked')};
+  if(D.touch){const d=D;d.timer=setTimeout(()=>{if(D!==d)return;if(d.lock){d.lockShown=true;lockMsg();return}bk.classList.add('lift');navigator.vibrate?.(12);startDrag(d.lx??d.x,d.ly??d.y)},400)}
 });
 document.addEventListener('touchmove',e=>{if(D?.on)e.preventDefault()},{passive:false});
 document.addEventListener('contextmenu',e=>{if(e.target.closest('.bk'))e.preventDefault()});
@@ -448,10 +473,10 @@ document.addEventListener('pointermove',e=>{
   if(!D)return;D.lx=e.clientX;D.ly=e.clientY;
   if(!D.on){const mv=Math.hypot(e.clientX-D.x,e.clientY-D.y);
     if(D.touch){if(mv>10){endDrag();D=null}return}
-    if(mv<6)return;startDrag(e.clientX,e.clientY)}
+    if(mv<6)return;if(D.lock){lockMsg();D=null;return}startDrag(e.clientX,e.clientY)}
   e.preventDefault();
   D.g.style.left=e.clientX-D.dx+'px';D.g.style.top=e.clientY-D.dy+'px';
-  const row=document.elementFromPoint(e.clientX,e.clientY)?.closest('.row');
+  let row=document.elementFromPoint(e.clientX,e.clientY)?.closest('.row');if(row?.classList.contains('locked'))row=null;
   if(!row){D.m.remove();D.to=null}else{
   const kids=[...row.querySelectorAll('.bk')].filter(k=>k!==D.el&&!D.gs.has(k.dataset.id));
   let i=kids.findIndex(k=>{const r=k.getBoundingClientRect();return e.clientX<r.left+r.width/2});
@@ -464,7 +489,7 @@ document.addEventListener('pointermove',e=>{
 },{passive:false});
 document.addEventListener('pointerup',()=>{
   if(!D)return;const d=D;endDrag();D=null;
-  if(!d.on){if(SELMODE){SEL.has(d.id)?SEL.delete(d.id):SEL.add(d.id);renderSel()}else openBook(d.id);return}
+  if(!d.on){if(d.lockShown)return;if(SELMODE){SEL.has(d.id)?SEL.delete(d.id):SEL.add(d.id);renderSel()}else openBook(d.id);return}
   if(d.to){const ids=d.group?d.group.sort(byVol):[d.id];for(const id of ids)removeEverywhere(id);const L=listOf(d.to.sid);const at=d.to.ref?L.indexOf(d.to.ref):L.length;L.splice(at<0?L.length:at,0,...ids);save();if(d.group)toast(`${ids.length}冊を巻数順に移動しました`)}
   renderShelf();
 });
@@ -524,7 +549,7 @@ function openBook(id){const b=S.books[id];if(!b)return;const tmp={...b};
   openPanel(`<button class="x" data-close>閉じる</button><h2>${esc(b.title)}</h2><p class="msg">場所：${esc(placeOf(id))}</p>${form(tmp)}
    <div class="btns"><button class="pri" id="bSave">保存</button><button id="bDel">削除</button></div>`);
   bindImg(tmp);
-  $('#bSave').onclick=()=>{readForm(tmp);S.books[id]=tmp;save();renderAll();closePanel();toast('保存しました')};
+  $('#bSave').onclick=()=>{readForm(tmp);S.books[id]=tmp;if(tmp.status!==b.status)placeByStatus(tmp);save();renderAll();closePanel();toast('保存しました')};
   $('#bDel').onclick=()=>confirmP(`「${b.title}」を蔵書から削除します。`,()=>{removeEverywhere(id);delete S.books[id];save();renderAll()});
 }
 
@@ -593,7 +618,7 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
   const save1=()=>{readForm(b);if(!b.title){toast('タイトルを入れてください');return false}
     const w=$('#where').value;const extra=(SER.list||[]).filter((x,i)=>SER.on.has(i)).map(x=>({id:uid(),isbn:x.isbn,title:x.title,author:x.author||b.author,publisher:x.publisher,pubdate:x.pubdate,status:b.status,mode:'spine',memo:'',cover:'',added:Date.now(),series:b.series||''}));
     if(extra.length&&b.color){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c:b.color,t:b.tcolor||'#ffffff'};delete b.color;delete b.tcolor}
-    const all=[b,...extra].sort((x,y)=>volOf(x)-volOf(y));for(const x of all){S.books[x.id]=x}listOf(w).push(...all.map(x=>x.id));
+    const all=[b,...extra].sort((x,y)=>volOf(x)-volOf(y));all.forEach((x,i)=>{x.added=Date.now()+i;S.books[x.id]=x});if(LOCK[b.status])all.forEach(placeByStatus);else listOf(w).push(...all.map(x=>x.id));
     S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(extra.length?`「${seriesOf(b)}」${all.length}冊を追加しました`:`「${b.title}」を追加しました`);return true};
   $('#aSave').onclick=save1;
   $('#aNext').onclick=()=>{if(save1())setTimeout(()=>addBook({autoscan:true}),300)};
@@ -665,7 +690,8 @@ function bulkAdd(){const Q=[];const owned=new Set(Object.values(S.books).map(b=>
    <p class="msg" id="lmsg">本を1冊ずつカメラにかざしてください。読めるとブルッと震えて下の一覧に入ります。</p>
    <button class="pri" id="scanBtn" style="width:100%;min-height:48px">読み取りをやめる</button>
    <div class="scan" id="scanBox" hidden></div>
-   <div class="fld" style="margin-top:12px"><label>置き場所</label><select id="where"><option value="tray">未配置</option>${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
+   <div class="fld" style="margin-top:12px"><label>状態</label><select id="bst">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${k==='done'?'selected':''}>${v}</option>`).join('')}</select><p class="note" style="margin:4px 0 0">積読・読書中にすると、置き場所ではなくそれぞれの棚に入ります</p></div>
+   <div class="fld"><label>置き場所</label><select id="where"><option value="tray">未配置</option>${curCase().shelves.map(s=>`<option value="${s.id}">${esc(curCase().name)} / ${esc(s.name)}</option>`).join('')}</select></div>
    <button class="pri" id="bulkSave" style="width:100%;min-height:48px" disabled>0冊をまとめて登録</button>
    <div id="bq" style="margin-top:8px"></div>`);
   if(S.lastWhere&&listOf(S.lastWhere))$('#where').value=S.lastWhere;
@@ -679,7 +705,7 @@ function bulkAdd(){const Q=[];const owned=new Set(Object.values(S.books).map(b=>
     const q={isbn};Q.push(q);draw();beep();flash(`${Q.length}冊目 OK`);m.textContent=`${Q.length}冊目を読み取りました。次の本をかざしてください`;
     const r=await lookup(isbn);if(r)flash(`${Q.indexOf(q)+1}冊目：${r.title}`);if(r){delete r.src;q.b={id:uid(),isbn,title:'',author:'',publisher:'',pubdate:'',status:'unread',mode:'spine',memo:'',cover:'',added:Date.now(),...r}}else q.err='本の情報が見つかりませんでした（外すか、あとで手入力）';draw()};
   $('#scanBtn').onclick=()=>{if(CAM){stopScan();$('#scanBtn').textContent='読み取りを再開する'}else{scan(onCode,true)}};
-  $('#bulkSave').onclick=()=>{const w=$('#where').value;const L=listOf(w);let n=0;for(const q of Q)if(q.b){q.b.added=Date.now()+n;S.books[q.b.id]=q.b;L.push(q.b.id);n++}
+  $('#bulkSave').onclick=()=>{const w=$('#where').value;const L=listOf(w);const st=$('#bst').value;let n=0;for(const q of Q)if(q.b){q.b.added=Date.now()+n;q.b.status=st;S.books[q.b.id]=q.b;if(LOCK[st])placeByStatus(q.b);else L.push(q.b.id);n++}
     S.sample=false;S.lastWhere=w;save();renderAll();closePanel();toast(`${n}冊を登録しました`)};
   scan(onCode,true);
 }
@@ -753,6 +779,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>同じ段にある同じシリーズは、まとめて巻数順に動きます。1冊だけ動かしたいときは「シリーズまとめて動かす」をオフにします。</li>
   <li>「まとめて選ぶ」で本をタップして選ぶと、まとめて動かしたり、巻数順に並べたり、色を変えたりできます。</li>
   <li>本をタップすると詳細が開きます。「表紙を見せて飾る」にすると表紙が見える置き方になります。背表紙の色もここで変えられます（同じシリーズにまとめて使えます）。</li>
+  <li>「読書中」「積読」にした本は、未配置の下にあるそれぞれの棚へ自動で入ります（積読は登録順）。読了にするまでは動かせません。読了にすると「未配置」に移るので、そこから好きな場所へ並べてください。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>新刊チェック</h3><ul>
   <li>本棚にある本のシリーズと著者から、新しく出た本と発売予定の本を自動で探します。</li>
@@ -784,7 +811,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v25';let updAt=0;
+const APP_V='hondana-v26';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
