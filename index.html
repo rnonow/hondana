@@ -607,7 +607,7 @@ function confirmP(t,cb){openPanel(`<button class="x" data-close>閉じる</butto
 
 /* ---- 本の詳細・編集 ---- */
 function form(b){return `
-  <div class="prev">${faceHTML(b,150)}<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><button id="imgBtn">表紙を写真にする</button><button id="spBtn">背表紙を写真にする</button>${b.cover||b.spine?'<button id="imgClr">写真を外す</button>':''}<p class="msg" style="margin:0">表紙はISBNから自動で表示します。出ない時や背表紙を本物にしたい時は撮影してください</p></div></div>
+  <div class="prev">${faceHTML(b,150)}${b.cover||b.spine?'<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><button id="imgClr">撮った写真を外す</button></div>':''}</div>
   <div class="fld"><label>タイトル</label><input id="f-title" value="${esc(b.title)}"></div>
   <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
@@ -626,8 +626,6 @@ function photoChips(b,apply=true){photoColors(b.cover).then(cs=>{const box=$('#f
 function bindImg(b){
   if(b.cover)photoChips(b,false);
   const pick=cb=>{const inp=$('#imgIn');inp.value='';inp.onchange=()=>{const f=inp.files[0];if(f)cb(f)};inp.click()};
-  $('#imgBtn').onclick=()=>pick(f=>shrink(f,360).then(u=>{b.cover=u;$('.prev .face').outerHTML=faceHTML(b,150);toast('表紙を設定しました');photoChips(b)}));
-  $('#spBtn').onclick=()=>pick(f=>shrink(f,600,true).then(([u,r])=>{b.spine=u;b.spineW=Math.round(Math.max(16,Math.min(70,look(b).h*r)));toast('背表紙を設定しました。保存すると本棚に反映されます')}));
   const clr=$('#imgClr');if(clr)clr.onclick=()=>{delete b.cover;delete b.spine;delete b.spineW;$('.prev .face').outerHTML=faceHTML(b,150);clr.remove();toast('写真を外しました')}}
 function shrink(f,max=360,ratio=false){return new Promise(r=>{const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);const u=c.toDataURL('image/jpeg',.82);r(ratio?[u,img.width/img.height]:u)};img.src=URL.createObjectURL(f)})}
 
@@ -666,10 +664,8 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
    <button class="pri" id="scanBtn" style="width:100%;min-height:52px">カメラでバーコードを読み取る</button>
    <button id="bulkBtn" style="width:100%;margin-top:8px">何冊も続けて読み取る（まとめて登録）</button>
    <div class="scan" id="scanBox" hidden></div>
-   <button id="photoBtn" style="width:100%;margin-top:8px">うまく読めない時：写真を撮って読み取る</button>
-   <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
-   <div class="fld" style="margin-top:10px"><label>またはISBN（10桁/13桁、ハイフン可）を入力</label><div style="display:flex;gap:8px"><input id="isbn" inputmode="numeric" placeholder="978-4-..." value="${esc(b.isbn)}"><button id="look">検索</button></div></div>
-   <div class="fld"><label>またはタイトル・著者などのキーワードで探す</label><div style="display:flex;gap:8px"><input id="kw" type="search" enterkeyhint="search" placeholder="例：かがみの孤城 辻村"><button id="kwBtn">探す</button></div></div>
+   <input type="hidden" id="isbn" value="${esc(b.isbn)}">
+   <div class="fld" style="margin-top:10px"><label>またはタイトル・著者などのキーワードで探す</label><div style="display:flex;gap:8px"><input id="kw" type="search" enterkeyhint="search" placeholder="例：かがみの孤城 辻村"><button id="kwBtn">探す</button></div></div>
    <div id="kres"></div>
    <p class="msg" id="lmsg">openBD → Google Books → 国立国会図書館サーチの順に探します。見つからなければ下に手入力してください。</p>
    <div id="serBox"></div>
@@ -686,8 +682,6 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
     else{m.textContent='見つかりませんでした（またはこの環境では外部APIに接続できません）。手入力してください。';m.classList.add('err')}
     $('#fwrap').innerHTML=form(b);bindImg(b);showSeries(b)};
   $('#scanBtn').onclick=()=>{primeSound();$('#lmsg').className='msg';$('#lmsg').textContent='本の裏表紙の「978」で始まるバーコードを枠に入れてください';scan(code=>{$('#isbn').value=code;go()})};
-  $('#photoBtn').onclick=()=>{const i=$('#photoIn');i.value='';i.onchange=async()=>{const f=i.files[0];if(!f)return;const m=$('#lmsg');m.className='msg';m.textContent='写真から読み取り中…';
-    const code=await scanPhoto(f);if(code){$('#isbn').value=code;go()}else{m.textContent='写真から978で始まるバーコードが見つかりませんでした。バーコードを大きく、まっすぐ、ピントを合わせて撮ってください。';m.classList.add('err')}};i.click()};
   if(pre?.autoscan)$('#scanBtn').click();
   const kwgo=async()=>{const q=$('#kw').value.trim();if(!q)return;const m=$('#lmsg'),box=$('#kres');m.className='msg';m.textContent='検索中…';box.innerHTML='';$('#kw').blur();
     let list=[];try{const seen=new Set();const e=encodeURIComponent(q);const [t1,t2]=await Promise.all([ndl('title='+e+'&cnt=40').catch(()=>[]),ndl('any='+e+'&cnt=60')]);
@@ -700,7 +694,6 @@ function addBook(pre){SER={list:[],on:new Set()};const b={id:uid(),isbn:'',title
       Object.assign(b,n);$('#isbn').value=n.isbn;$('#fwrap').innerHTML=form(b);bindImg(b);go()}};
   $('#bulkBtn').onclick=()=>{primeSound();bulkAdd()};
   $('#kwBtn').onclick=kwgo;$('#kw').onkeydown=e=>{if(e.key==='Enter')kwgo()};
-  $('#look').onclick=go;$('#isbn').onkeydown=e=>{if(e.key==='Enter')go()};
   const save1=()=>{readForm(b);if(!b.title){toast('タイトルを入れてください');return false}
     const w=$('#where').value;const extra=(SER.list||[]).filter((x,i)=>SER.on.has(i)).map(x=>({id:uid(),isbn:x.isbn,title:x.title,author:x.author||b.author,publisher:x.publisher,pubdate:x.pubdate,status:b.status,mode:'spine',memo:'',cover:'',added:Date.now(),series:b.series||''}));
     if(extra.length&&b.color){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c:b.color,t:ink(b.color)};delete b.color;delete b.tcolor}
@@ -940,7 +933,7 @@ $('#helpBtn').onclick=()=>openPanel(`<button class="x" data-close>閉じる</but
   <li>本をタップすると詳細が開きます。「表紙を見せて飾る」にすると表紙が見える置き方になります。背表紙の色もここで変えられます（同じシリーズにまとめて使えます）。</li>
   <li>「読書中」「積読」「読みたい」にした本は、下のタブ「読書中」にあるそれぞれの棚へ自動で入ります（積読は登録順）。3つの棚の間でドラッグすると、状態もその棚に合わせて変わります。読了にすると本棚の一番下の段の最後に移ります。</li>
   <li>本棚の右上の「…」から、本棚や段の追加、画像で保存、共有リンク、まとめて選ぶなどができます。データと使い方は右上の ⚙ にあります。</li>
-  <li>背表紙の色は、タイトルの言葉（「海」なら青など）や、自分で撮った表紙の写真からおすすめの色が最初に選ばれます。本をタップして編集すると、おすすめの色から選び直せます。文字の色は背景に合わせて白か黒に自動で変わります。</li>
+  <li>背表紙の色は、タイトルの言葉（「海」なら青など）からおすすめの色が最初に選ばれます。本をタップして編集すると、おすすめの色から選び直せます。文字の色は背景に合わせて白か黒に自動で変わります。</li>
   <li>本棚は本のようにページになっています。左右にスワイプ（または下の ‹ › ）でめくります。段に入りきらない本は次の段へ、3段目の続きは次のページへ続きます。本を長押しで持ったまま画面の左右の端へ持っていくと、ページがめくれます。</li>
   <li>本棚や段は「本棚を追加」「段を追加」で増やせます。段の名前をタップすると名前を変えたり消したりできます。</li></ul>
   <h3>選書（新刊・おすすめ）</h3><ul>
@@ -975,7 +968,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.v)
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v40';let updAt=0;
+const APP_V='hondana-v41';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
