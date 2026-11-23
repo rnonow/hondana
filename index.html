@@ -229,6 +229,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .ptr{height:0;overflow:hidden;display:flex;align-items:flex-end;justify-content:center;font-size:13px;color:var(--mute)}.ptr.go{color:var(--acc);font-weight:700}
 @media(hover:none){#pNew>.filters,#pReco>.filters{display:none}}
 #rcat{display:none}#seg button{font-size:13.5px;padding:0 2px;min-width:0;white-space:nowrap}#seg button[data-p=rank]{flex:1.35}
+#case .row{padding-top:8px}
 </style>
 </head>
 <body>
@@ -374,7 +375,18 @@ const byVol=(a,b)=>seriesOf(S.books[a]).localeCompare(seriesOf(S.books[b]),'ja')
 const skey=b=>z2h(seriesOf(b)).toLowerCase().replace(/[\s　・.,:：!！?？『』「」()（）\-]/g,'');
 function look(b,own=true){const k=skey(b),h=hash(k||b.isbn||b.title);const st=(S.seriesStyle||{})[k];
   const p=own&&b.color?[b.color]:st?[st.c]:[kwColor(b.title)||PAL[h%PAL.length][0]];
-  return {c:p[0],t:ink(p[0]),h:170,w:34}} // 高さは見栄え重視で全冊そろえる
+  return {c:p[0],t:ink(p[0]),h:KH[kindOf(b)],w:34}}
+/* 本の種類で背の高さを変える：単行本＝段いっぱい、マンガ＝標準、文庫＝少し低い */
+const KH={book:200,manga:170,bunko:156},KIND={book:'単行本',bunko:'文庫',manga:'マンガ'};
+const guessKind=b=>{const t=[b.title,b.series,b.publisher,b.label].join(' ');return /文庫/.test(t)?'bunko':/コミック|COMICS|Comics|comics|漫画|マンガ|ジャンプ|マガジン|サンデー|チャンピオン/.test(t)?'manga':'book'};
+const kindOf=b=>KIND[b.kind]?b.kind:KIND[b.cat]?b.cat:guessKind(b);
+/* openBD の Cコード（2けた目：1＝文庫、9＝コミック）から種類を決める */
+function ccKind(j){const sub=j?.onix?.DescriptiveDetail?.Subject||[];const c=(sub.find(x=>x.SubjectSchemeIdentifier==='78')||{}).SubjectCode||'';const m=c.match(/^C?\d(\d)\d\d$/);
+  return m?(m[1]==='1'?'bunko':m[1]==='9'?'manga':'book'):''}
+async function fillKinds(){const L=Object.values(S.books).filter(b=>!b.kind&&/^97[89]\d{10}$/.test(b.isbn||''));let ch=0;
+  for(let i=0;i<L.length;i+=100){const part=L.slice(i,i+100);try{const r=await fetch('https://api.openbd.jp/v1/get?isbn='+part.map(b=>b.isbn).join(','));const j=await r.json();
+    part.forEach((b,k)=>{const kd=ccKind(j[k]);if(kd&&S.books[b.id]){S.books[b.id].kind=kd;ch++}})}catch(e){}}
+  if(ch){save();renderShelf()}}
 const seriesBooks=b=>{const k=skey(b);return Object.values(S.books).filter(x=>skey(x)===k)};
 /* 表紙画像：自分で選んだ画像 → ISBNから Google ブックスの表紙画像（画像がない本は灰色の仮画像が返るので、幅で見分けて外す） */
 const coverSrc=b=>b.cover||(b.isbn&&/^97[89]\d{10}$/.test(b.isbn)?`https://books.google.com/books/content?vid=ISBN${b.isbn}&printsec=frontcover&img=1&zoom=1&fife=w400`:'');
@@ -417,7 +429,8 @@ function bookHTML(id,force){const b=S.books[id];if(!b)return '';const L=look(b);
 /* ---- 本棚 ---- */
 function renderSampleBar(){const L=S.sampleKeep?[]:sampleBooks();$('#sampleBar').hidden=!L.length;$('#sampleTxt').textContent=`最初から入っていたサンプルの本が${L.length}冊残っています。`;$('#emptyNote').hidden=Object.keys(S.books).length>0}
 /* 未配置はなくした：置き場所のない本（以前の未配置の本・読了になった本）は、表示中の本棚の一番下の段の最後に入れる */
-const bottomList=()=>{const c=curCase();return c.shelves[c.shelves.length-1].books};
+/* 追加した本は、今の本棚に並んでいる一番最後の本の後ろへ（本棚が空なら一番最初へ） */
+const bottomList=()=>{const c=curCase();for(let i=c.shelves.length-1;i>=0;i--)if(c.shelves[i].books.some(id=>S.books[id]))return c.shelves[i].books;return c.shelves[0].books};
 function sweepTray(){const t=(S.tray||[]).filter(id=>S.books[id]&&!S.cases.some(c=>c.shelves.some(x=>x.books.includes(id))));S.tray=[];if(t.length){bottomList().push(...t);save()}return t.length}
 /* 本棚をページに分けて、本のように左右にめくる。1ページ＝最大3段、段の本は幅に収まる分ずつ次のページへ続く */
 let PAGE=0,PAGES=1,PW=0,VIEW=null;
@@ -731,13 +744,14 @@ function form(b,add){return `
   <div class="two"><div class="fld"><label>著者</label><input id="f-author" value="${esc(b.author)}"></div><div class="fld"><label>出版社</label><input id="f-publisher" value="${esc(b.publisher)}"></div></div>
   <div class="two"><div class="fld"><label>発売日</label><input id="f-pubdate" value="${esc(b.pubdate)}"></div><div class="fld"><label>ISBN</label><input id="f-isbn" value="${esc(b.isbn)}" inputmode="numeric"></div></div>
   ${1?`<div class="two"><div class="fld"><label>シリーズ（空欄なら書名から自動）</label><input id="f-series" value="${esc(b.series||'')}" placeholder="${esc(seriesOf({...b,series:''}))}"></div><div class="fld"><label>巻</label><input id="f-vol" inputmode="decimal" value="${esc(b.vol??'')}" placeholder="${volOf({...b,vol:''})||''}"></div></div>`:''}
+  <div class="fld"><label>本の種類（背の高さ）</label><select id="f-kind">${Object.entries(KIND).map(([k,v])=>`<option value="${k}" ${kindOf(b)===k?'selected':''}>${v}</option>`).join('')}</select></div>
   ${add?'':`<div class="fld"><label>読了日（読了にすると自動で入ります）</label><input type="date" id="f-doneAt" value="${esc(b.doneAt||'')}"></div>`}
   </details>
 ${add?`  <div hidden><select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>`:`  <div class="two"><div class="fld">${add?'':''}<select id="f-status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${b.status===k?'selected':''}>${v}</option>`).join('')}</select></div>
   <div class="fld">${add?'':''}<select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
   <div class="fld"><div class="cchips one" id="f-chips">${chipsHTML(recoColors(b),look(b).c)}<input type="color" id="f-color" value="${look(b).c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
   ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}`}`}
-function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol','doneAt']){const el=$('#f-'+k);if(el)b[k]=el.value.trim()}
+function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol','doneAt','kind']){const el=$('#f-'+k);if(el)b[k]=el.value.trim()}
   if(!$('#f-color'))return void(b.isbn=normIsbn(b.isbn)||b.isbn);
   const c=$('#f-color').value,t=ink(c);const L0=look(b);
   if(c!==L0.c){if($('#f-sall')?.checked){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c,t};for(const x of seriesBooks(b)){delete x.color;delete x.tcolor}delete b.color;delete b.tcolor}else{b.color=c;b.tcolor=t}}
@@ -765,7 +779,7 @@ function normIsbn(s){s=String(s||'').replace(/[^0-9Xx]/g,'').toUpperCase();
   return s.length===13?s:''}
 async function lookup(isbn){
   try{const r=await fetch('https://api.openbd.jp/v1/get?isbn='+isbn);const j=await r.json();const s=j?.[0]?.summary;
-    if(s)return {title:[cleanTitle(s.title),s.volume].filter(Boolean).join(' '),author:obdAuthor(s.author),publisher:s.publisher||'',pubdate:fmtDate(s.pubdate),cover:s.cover||'',src:'openBD'}}catch(e){}
+    if(s){const kd=ccKind(j[0]);return {title:[cleanTitle(s.title),s.volume].filter(Boolean).join(' '),author:obdAuthor(s.author),publisher:s.publisher||'',pubdate:fmtDate(s.pubdate),cover:s.cover||'',src:'openBD',...(kd?{kind:kd}:{})}}}catch(e){}
   try{const r=await fetch('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn);const j=await r.json();const v=j.items?.[0]?.volumeInfo;
     if(v)return {title:[v.title,v.subtitle].filter(Boolean).join(' '),author:(v.authors||[]).join('・'),publisher:v.publisher||'',pubdate:v.publishedDate||'',cover:(v.imageLinks?.thumbnail||'').replace('http:','https:'),src:'Google Books'}}catch(e){}
   try{const r=await ndl('isbn='+isbn+'&cnt=5');const n=r.find(x=>x.isbn===isbn)||r[0];if(n)return {...n,isbn,src:'国立国会図書館サーチ'}}catch(e){}
@@ -1144,6 +1158,7 @@ $('#ioBtn').onclick=()=>{openPanel(`<button class="x" data-close>閉じる</butt
 /* バックアップが30日以上ない時は歯車に小さな印 */
 function renderBackupDot(){const n=Object.keys(S.books).length;$('#gearBtn').classList.toggle('dot',n>=5&&Date.now()-(S.lastBackup||0)>30*864e5);$('#ioBtn').classList.toggle('dot',$('#gearBtn').classList.contains('dot'))}
 renderBackupDot();
+setTimeout(fillKinds,1500);
 /* ---- 画面切替 ---- */
 function renderAll(){renderShelf();renderList();renderNews();renderReco();renderBadge()}
 function show(v){if(v==='shelf'||v==='list')scrollTo(0,0);$('#caseMore').hidden=v!=='shelf';$('#findBtn').setAttribute('aria-pressed',v==='list');for(const b of document.querySelectorAll('#tabs button'))b.setAttribute('aria-pressed',b.dataset.v===v);
@@ -1186,7 +1201,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v80';let updAt=0;
+const APP_V='hondana-v81';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
