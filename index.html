@@ -379,11 +379,14 @@ function look(b,own=true){const k=skey(b),h=hash(k||b.isbn||b.title);const st=(S
 /* 本の種類で背の高さを変える：単行本＝段いっぱい、マンガ＝標準、文庫＝少し低い */
 const KH={book:200,manga:170,bunko:156},KIND={book:'単行本',bunko:'文庫',manga:'マンガ'};
 const guessKind=b=>{const t=[b.title,b.series,b.publisher,b.label].join(' ');return /文庫/.test(t)?'bunko':/コミック|COMICS|Comics|comics|漫画|マンガ|ジャンプ|マガジン|サンデー|チャンピオン/.test(t)?'manga':'book'};
-const kindOf=b=>KIND[b.kind]?b.kind:KIND[b.cat]?b.cat:guessKind(b);
+/* 種類の決め方：自分で選んだもの → 分類コード → 同じシリーズのほかの巻 → 書名などからの推測 */
+const kindOf=b=>{if(KIND[b.kind])return b.kind;const k=skey(b);if(k){const c={};for(const x of Object.values(S.books))if(x!==b&&KIND[x.kind]&&skey(x)===k)c[x.kind]=(c[x.kind]||0)+1;const best=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];if(best)return best[0]}return KIND[b.cat]?b.cat:guessKind(b)};
 /* openBD の Cコード（2けた目：1＝文庫、9＝コミック）から種類を決める */
-function ccKind(j){const sub=j?.onix?.DescriptiveDetail?.Subject||[];const c=(sub.find(x=>x.SubjectSchemeIdentifier==='78')||{}).SubjectCode||'';const m=c.match(/^C?\d(\d)\d\d$/);
-  return m?(m[1]==='1'?'bunko':m[1]==='9'?'manga':'book'):''}
-async function fillKinds(){const L=Object.values(S.books).filter(b=>!b.kind&&/^97[89]\d{10}$/.test(b.isbn||''));let ch=0;
+function ccKind(j){const sub=j?.onix?.DescriptiveDetail?.Subject||[];const c=(sub.find(x=>x.SubjectSchemeIdentifier==='78')||{}).SubjectCode||'';const m=String(c).match(/^C?\d(\d)(\d\d)$/);
+  // Cコード：2けた目＝形（1文庫・9コミック）、3〜4けた目＝内容（79＝コミック）。マンガの単行本は形が0でも内容が79
+  return m?(m[2]==='79'||m[1]==='9'?'manga':m[1]==='1'?'bunko':'book'):''}
+async function fillKinds(){if(S.kindV!==2){for(const b of Object.values(S.books))if(b.kindSrc!=='user')delete b.kind;S.kindV=2}
+  const L=Object.values(S.books).filter(b=>!b.kind&&/^97[89]\d{10}$/.test(b.isbn||''));let ch=0;
   for(let i=0;i<L.length;i+=100){const part=L.slice(i,i+100);try{const r=await fetch('https://api.openbd.jp/v1/get?isbn='+part.map(b=>b.isbn).join(','));const j=await r.json();
     part.forEach((b,k)=>{const kd=ccKind(j[k]);if(kd&&S.books[b.id]){S.books[b.id].kind=kd;ch++}})}catch(e){}}
   if(ch){save();renderShelf()}}
@@ -751,7 +754,8 @@ ${add?`  <div hidden><select id="f-status">${Object.entries(ST).map(([k,v])=>`<o
   <div class="fld">${add?'':''}<select id="f-mode"><option value="spine" ${b.mode!=='face'?'selected':''}>背表紙で並べる</option><option value="face" ${b.mode==='face'?'selected':''}>表紙を見せて飾る</option></select></div></div>
   <div class="fld"><div class="cchips one" id="f-chips">${chipsHTML(recoColors(b),look(b).c)}<input type="color" id="f-color" value="${look(b).c}" style="width:46px;height:38px;padding:2px;min-height:0"></div></div>
   ${(()=>{const n=seriesBooks(b).filter(x=>x.id!==b.id).length;return n?`<label class="fld" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-sall" checked style="width:22px;height:22px"> 同じシリーズのほかの${n}冊にも同じ色を使う</label>`:''})()}`}`}
-function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol','doneAt','kind']){const el=$('#f-'+k);if(el)b[k]=el.value.trim()}
+function readForm(b){for(const k of ['title','author','publisher','pubdate','isbn','status','mode','memo','series','vol','doneAt']){const el=$('#f-'+k);if(el)b[k]=el.value.trim()}
+  const kd=$('#f-kind');if(kd&&kd.value!==kindOf(b)){b.kind=kd.value;b.kindSrc='user'}
   if(!$('#f-color'))return void(b.isbn=normIsbn(b.isbn)||b.isbn);
   const c=$('#f-color').value,t=ink(c);const L0=look(b);
   if(c!==L0.c){if($('#f-sall')?.checked){S.seriesStyle=S.seriesStyle||{};S.seriesStyle[skey(b)]={c,t};for(const x of seriesBooks(b)){delete x.color;delete x.tcolor}delete b.color;delete b.tcolor}else{b.color=c;b.tcolor=t}}
@@ -1201,7 +1205,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v81';let updAt=0;
+const APP_V='hondana-v82';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
