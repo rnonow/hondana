@@ -382,14 +382,26 @@ const guessKind=b=>{const t=[b.title,b.series,b.publisher,b.label].join(' ');ret
 /* 種類の決め方：自分で選んだもの → 分類コード → 同じシリーズのほかの巻 → 書名などからの推測 */
 const kindOf=b=>{if(KIND[b.kind])return b.kind;const k=skey(b);if(k){const c={};for(const x of Object.values(S.books))if(x!==b&&KIND[x.kind]&&skey(x)===k)c[x.kind]=(c[x.kind]||0)+1;const best=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];if(best)return best[0]}return KIND[b.cat]?b.cat:guessKind(b)};
 /* openBD の Cコード（2けた目：1＝文庫、9＝コミック）から種類を決める */
-function ccKind(j){const sub=j?.onix?.DescriptiveDetail?.Subject||[];const c=(sub.find(x=>x.SubjectSchemeIdentifier==='78')||{}).SubjectCode||'';const m=String(c).match(/^C?\d(\d)(\d\d)$/);
-  // Cコード：2けた目＝形（1文庫・9コミック）、3〜4けた目＝内容（79＝コミック）。マンガの単行本は形が0でも内容が79
-  return m?(m[2]==='79'||m[1]==='9'?'manga':m[1]==='1'?'bunko':'book'):''}
-async function fillKinds(){if(S.kindV!==2){for(const b of Object.values(S.books))if(b.kindSrc!=='user')delete b.kind;S.kindV=2}
-  const L=Object.values(S.books).filter(b=>!b.kind&&/^97[89]\d{10}$/.test(b.isbn||''));let ch=0;
+/* openBD から種類を決める。手がかり：Cコード（2けた目＝形 1文庫・9コミック、3〜4けた目＝内容 79コミック）、
+   シリーズ名やレーベル名の「文庫」、本の高さ（文庫は約148mm）。どれも無ければ空 */
+function ccKind(j){const d=j?.onix?.DescriptiveDetail||{};const sub=d.Subject||[];const c=(sub.find(x=>x.SubjectSchemeIdentifier==='78')||{}).SubjectCode||'';const m=String(c).match(/^C?\d(\d)(\d\d)$/);
+  const coll=[j?.summary?.series,...[].concat(d.Collection||[]).flatMap(x=>[].concat(x?.TitleDetail||[]).flatMap(t=>[].concat(t?.TitleElement||[]).map(e=>e?.TitleText?.content||e?.TitleText||'')))].join(' ');
+  const hgt=+([].concat(d.Measure||[]).find(x=>x.MeasureType==='01')||{}).Measurement||0;
+  if(m&&(m[2]==='79'||m[1]==='9'))return 'manga';
+  if(m&&m[1]==='1'||/文庫/.test(coll)||hgt&&hgt<=155)return 'bunko';
+  return m||hgt?'book':''}
+/* 国立国会図書館サーチから種類を決める：大きさ（文庫は15cm）、シリーズ名の「文庫」 */
+async function ndlKind(isbn){let r;for(let k=0;k<3;k++){r=await fetch('https://ndlsearch.ndl.go.jp/api/opensearch?cnt=3&isbn='+isbn);if(r.status!==429)break;await new Promise(o=>setTimeout(o,1500*(k+1)))}if(!r.ok)return '';
+  const d=new DOMParser().parseFromString(await r.text(),'text/xml');const it=d.getElementsByTagName('item')[0];if(!it)return '';const g=t=>[...it.getElementsByTagName(t)].map(e=>e.textContent).join(' ');
+  const nc=ndlCat(it);if(nc==='manga')return 'manga';if(nc==='bunko')return 'bunko';const cm=+(g('dcterms:extent').match(/(\d+(?:\.\d+)?)\s*cm/)||[])[1]||0;
+  if(/文庫/.test(g('dcndl:seriesTitle')+' '+g('dcndl:seriesTitleTranscription'))||cm&&cm<=16)return 'bunko';return cm?'book':''}
+async function fillKinds(){if(S.kindV!==3){for(const b of Object.values(S.books)){delete b.kindTried;if(b.kindSrc!=='user')delete b.kind}S.kindV=3}
+  const L=Object.values(S.books).filter(b=>!b.kind&&!b.kindTried&&/^97[89]\d{10}$/.test(b.isbn||''));let ch=0;const rest=[];
   for(let i=0;i<L.length;i+=100){const part=L.slice(i,i+100);try{const r=await fetch('https://api.openbd.jp/v1/get?isbn='+part.map(b=>b.isbn).join(','));const j=await r.json();
-    part.forEach((b,k)=>{const kd=ccKind(j[k]);if(kd&&S.books[b.id]){S.books[b.id].kind=kd;ch++}})}catch(e){}}
-  if(ch){save();renderShelf()}}
+    part.forEach((b,k)=>{const kd=ccKind(j[k]);if(kd&&S.books[b.id]){S.books[b.id].kind=kd;ch++}else rest.push(b)})}catch(e){rest.push(...part)}}
+  if(ch){save();renderShelf();ch=0}
+  for(const b of rest){try{const kd=await ndlKind(b.isbn);const x=S.books[b.id];if(!x)continue;if(kd){x.kind=kd;ch++}else x.kindTried=1;if(ch&&ch%5===0){save();renderShelf()}}catch(e){}await new Promise(o=>setTimeout(o,400))}
+  if(ch||rest.length){save();renderShelf()}}
 const seriesBooks=b=>{const k=skey(b);return Object.values(S.books).filter(x=>skey(x)===k)};
 /* 表紙画像：自分で選んだ画像 → ISBNから Google ブックスの表紙画像（画像がない本は灰色の仮画像が返るので、幅で見分けて外す） */
 const coverSrc=b=>b.cover||(b.isbn&&/^97[89]\d{10}$/.test(b.isbn)?`https://books.google.com/books/content?vid=ISBN${b.isbn}&printsec=frontcover&img=1&zoom=1&fife=w400`:'');
@@ -1205,7 +1217,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v83';let updAt=0;
+const APP_V='hondana-v84';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
