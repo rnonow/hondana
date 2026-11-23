@@ -230,6 +230,25 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 @media(hover:none){#pNew>.filters,#pReco>.filters{display:none}}
 #rcat{display:none}#seg button{font-size:13.5px;padding:0 2px;min-width:0;white-space:nowrap}#seg button[data-p=rank]{flex:1.35}
 #case .row{padding-top:8px}
+
+/* 栞の部屋 */
+#v-read{max-width:900px}
+.room{position:relative;height:var(--rh,520px);display:grid;grid-template-columns:minmax(0,1fr) 44%;gap:0 6px;padding:8px 8px 16px;border-radius:12px;overflow:hidden;
+  background:linear-gradient(180deg,#0000 0 calc(100% - 16px),var(--wood) calc(100% - 16px)),repeating-linear-gradient(90deg,#0000 0 46px,#00000008 46px 48px),var(--tray);box-shadow:inset 0 2px 8px #0002}
+.room::after{content:"";position:absolute;left:0;right:0;bottom:16px;height:3px;background:var(--wood2)}
+.rleft{display:flex;flex-direction:column;min-width:0;min-height:0}
+.rlbl{font-size:12px;font-weight:700;color:var(--mute);margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rlbl .note{font-weight:400;font-size:11px;margin-left:4px}
+#v-read .row{background:none;box-shadow:none;min-height:0;padding:0;border-radius:0}
+#v-read .empty{font-size:12px;color:var(--mute);opacity:1;margin:auto;text-align:center;padding:6px}
+#v-read [id$=Gather] button{font-size:11.5px;min-height:30px;padding:2px 8px;margin:2px 0}
+.wallshelf{flex:none}
+#wishRow{--k:var(--kw);height:calc(200px * var(--kw) + 4px);align-items:flex-end;gap:2px;padding:0 4px;overflow-x:auto;overflow-y:hidden}
+.wboard{height:9px;margin:0 -2px;border-radius:2px;background:linear-gradient(180deg,var(--woodhi),var(--wood) 50%,var(--wood2));box-shadow:0 5px 6px -3px #0006;position:relative}
+.wboard::before,.wboard::after{content:"";position:absolute;top:9px;width:6px;height:14px;background:var(--wood2);clip-path:polygon(0 0,100% 0,0 100%)}.wboard::before{left:14%}.wboard::after{right:14%;transform:scaleX(-1)}
+.readzone{flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-height:0;margin-top:20px}
+#readRow{--k:var(--kr);gap:4px;align-items:flex-end;overflow-x:auto;overflow-y:hidden;flex:none}
+.pilezone{display:flex;flex-direction:column;min-height:0}
+#tsunRow{flex:1;height:auto;--k:.85;padding:0 2px}#tsunRow .bk.pb{width:calc(var(--pw) * .9)}
 </style>
 </head>
 <body>
@@ -271,12 +290,17 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
   </section>
 
   <section id="v-read" hidden>
-    <div class="tray lockshelf" style="margin-top:0;margin-bottom:22px"><h3>読書中 <span class="note" id="readN"></span></h3><div id="readGather"></div>
-      <div class="row locked" id="readRow" data-shelf="reading"></div></div>
-    <div class="tray lockshelf" style="margin-top:0;margin-bottom:22px"><h3>積読 <span class="note" id="tsunN"></span></h3><div id="tsunGather"></div>
-      <div class="row locked pile iscroll" id="tsunRow" data-shelf="tsun"></div></div>
-    <div class="tray lockshelf" style="margin-top:0;margin-bottom:22px"><h3>読みたい <span class="note" id="wishN"></span></h3><div id="wishGather"></div>
-      <div class="row locked" id="wishRow" data-shelf="wish"></div></div>
+    <!-- 栞：1つの部屋の絵。左上の壁に「読みたい」の棚、左下で棒人間が机で読書中、右に床から積み上がった積読の山 -->
+    <div class="room" id="room">
+      <div class="rleft">
+        <div class="wallshelf"><div class="rlbl">読みたい <span class="note" id="wishN"></span></div><div id="wishGather"></div>
+          <div class="row locked" id="wishRow" data-shelf="wish"></div><div class="wboard"></div></div>
+        <div class="readzone"><div class="rlbl">読書中 <span class="note" id="readN"></span></div><div id="readGather"></div>
+          <div class="row locked" id="readRow" data-shelf="reading"></div></div>
+      </div>
+      <div class="pilezone"><div class="rlbl">積読 <span class="note" id="tsunN"></span></div><div id="tsunGather"></div>
+        <div class="row locked pile iscroll" id="tsunRow" data-shelf="tsun"></div></div>
+    </div>
   </section>
 
   <section id="v-list" class="sec" hidden>
@@ -478,10 +502,10 @@ $('#viewOff').onclick=()=>{VIEW=null;PAGE=0;renderShelf()};
 $('#pgBar').oninput=e=>{const i=+e.target.value;if(i===PAGE)return;const el=$('#case');PAGE=i;el.scrollTo({left:i*el.clientWidth,behavior:'auto'});$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1};$('#pgNext').onclick=()=>goPage(PAGE+1);
 let RSZ;addEventListener('resize',()=>{clearTimeout(RSZ);RSZ=setTimeout(()=>{const w=$('#case').clientWidth;if(w&&Math.abs(w-PW)>4&&!D?.on)renderShelf()},200)});
 /* 読書中タブ：3つの棚が1画面に収まるように全体を縮める */
-function fitRead(){requestAnimationFrame(()=>{const v=$('#v-read');if(v.hidden)return;v.style.removeProperty('--k');const t=$('#tabs');
-  const lim=(getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top:innerHeight)-8;
-  const k0=parseFloat(getComputedStyle(v).getPropertyValue('--k'))||1,bot=$('#wishRow').getBoundingClientRect().bottom;
-  if(bot>lim){const k=Math.max(.4,k0-(bot-lim)/3/170);v.style.setProperty('--k',k.toFixed(3))}})}
+function fitRead(){requestAnimationFrame(()=>{const v=$('#v-read');if(v.hidden)return;const t=$('#tabs'),r=$('#room');
+  const lim=(getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top:innerHeight)-10;const h=Math.max(360,lim-r.getBoundingClientRect().top);
+  r.style.setProperty('--rh',h+'px');const kw=Math.min(.8,Math.max(.4,h*.27/200));r.style.setProperty('--kw',kw.toFixed(3));
+  const avail=h-18-(200*kw+12)-34-22;r.style.setProperty('--kr',Math.min(1,Math.max(.5,avail/172)).toFixed(3))})}
 addEventListener('resize',fitRead);
 function renderShelf(){fitRead();sweepTray();renderSampleBar();renderSerDrag();
   $('#caseName').classList.toggle('multi',S.cases.length>1);$('#caseName').textContent=curCase().name;$('#caseSel').disabled=S.cases.length<2;document.title=curCase().name;
@@ -1217,7 +1241,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v84';let updAt=0;
+const APP_V='hondana-v85';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
