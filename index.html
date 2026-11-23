@@ -261,8 +261,8 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .reader .bk.rd{opacity:0;transition:opacity .7s;pointer-events:none}.reader .bk.rd.on{opacity:1;pointer-events:auto}
 .rdn{position:absolute;left:calc(10px*var(--k));top:calc(18px*var(--k));font-size:11px;color:var(--mute)}
 /* まとめて選ぶのバーは下のタブの上に重ねる（本棚の大きさを変えない） */
-.selbar{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:35;flex-wrap:nowrap;overflow-x:auto;border-radius:14px 14px 0 0;border-width:1px 0 0;margin:0;max-width:none;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 14px #0003;scrollbar-width:none}
-.selbar::-webkit-scrollbar{display:none}.selbar>*{flex:none}.selbar #selClr{position:sticky;right:0;background:var(--ink);color:var(--panel);border-color:var(--ink);box-shadow:-10px 0 10px var(--panel)}.selbar #selN{font-size:13px}
+.selbar{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:35;flex-wrap:nowrap;overflow-x:auto;border-radius:14px 14px 0 0;border-width:1px 0 0;margin:0;max-width:none;padding:8px 0 calc(8px + env(safe-area-inset-bottom)) 10px;box-shadow:0 -4px 14px #0003;scrollbar-width:none}
+.selbar::-webkit-scrollbar{display:none}.selbar>*{flex:none}.selbar #selClr{position:sticky;right:0;background:var(--ink);color:var(--panel);border-color:var(--ink);box-shadow:-10px 0 0 var(--panel);border-radius:12px 0 0 12px;padding:6px 16px}.selbar #selN{font-size:13px}
 </style>
 </head>
 <body>
