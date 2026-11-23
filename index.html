@@ -260,6 +260,9 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 .rleft{justify-content:flex-end}.readzone{flex:none;margin-top:14px}
 .reader .bk.rd{opacity:0;transition:opacity .7s;pointer-events:none}.reader .bk.rd.on{opacity:1;pointer-events:auto}
 .rdn{position:absolute;left:calc(10px*var(--k));top:calc(18px*var(--k));font-size:11px;color:var(--mute)}
+/* まとめて選ぶのバーは下のタブの上に重ねる（本棚の大きさを変えない） */
+.selbar{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:35;flex-wrap:nowrap;overflow-x:auto;border-radius:14px 14px 0 0;border-width:1px 0 0;margin:0;max-width:none;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 14px #0003;scrollbar-width:none}
+.selbar::-webkit-scrollbar{display:none}.selbar>*{flex:none}.selbar #selClr{position:sticky;right:0;background:var(--ink);color:var(--panel);border-color:var(--ink);box-shadow:-10px 0 10px var(--panel)}.selbar #selN{font-size:13px}
 </style>
 </head>
 <body>
@@ -292,7 +295,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 
 <main>
   <section id="v-shelf">
-    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selStatus">状態を変える</button><button id="selMove">別の本棚へ</button><button id="selColor">色を変える</button><button id="selClr">選択をやめる</button></div>
+    <div class="selbar" id="selbar" hidden><b id="selN">0冊</b><button id="selSeries">シリーズごと選ぶ</button><button id="selSort">巻数順に並べる</button><button id="selStatus">状態を変える</button><button id="selMove">別の本棚へ</button><button id="selColor">色を変える</button><button id="selClr">やめる</button></div>
     <div class="selbar" id="sampleBar" hidden><span id="sampleTxt" style="flex:1 1 220px"></span><button class="pri" id="sampleDel">サンプルだけ消す</button><button id="sampleKeep">残す</button></div>
     <p class="note" id="emptyNote" hidden style="font-size:15px;color:var(--ink)">まだ本がありません。「＋ 追加」から登録できます。</p>
     <div class="viewbar" id="viewBar" hidden><span id="viewTxt"></span><button id="viewOff">元の本棚に戻す</button></div>
@@ -1255,7 +1258,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v87';let updAt=0;
+const APP_V='hondana-v88';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
