@@ -235,7 +235,15 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 #v-read{max-width:900px}
 .room{position:relative;height:var(--rh,520px);display:grid;grid-template-columns:minmax(0,1fr) 44%;gap:0 6px;padding:8px 8px 16px;border-radius:12px;overflow:hidden;
   background:linear-gradient(180deg,#0000 0 calc(100% - 16px),var(--wood) calc(100% - 16px)),repeating-linear-gradient(90deg,#0000 0 46px,#00000008 46px 48px),var(--tray);box-shadow:inset 0 2px 8px #0002}
-.room::after{content:"";position:absolute;left:0;right:0;bottom:16px;height:3px;background:var(--wood2)}
+.room{padding-bottom:22px;background:linear-gradient(180deg,#0000 0 calc(100% - 30px),#0000 calc(100% - 30px)),linear-gradient(180deg,#ffffff10,#0000002a) bottom/100% 30px no-repeat,repeating-linear-gradient(90deg,var(--woodhi) 0 62px,var(--wood) 62px 63px,var(--woodhi) 63px 64px) bottom/100% 30px no-repeat,repeating-linear-gradient(90deg,#0000 0 22px,#0000000a 22px 23px),linear-gradient(180deg,var(--tray),color-mix(in srgb,var(--tray) 88%,#000))}
+.room::after{content:"";position:absolute;left:0;right:0;bottom:30px;height:7px;background:color-mix(in srgb,var(--panel) 80%,var(--wood));box-shadow:0 -1px 0 #0002,0 2px 3px #0003}
+.rleft,.pilezone{position:relative;z-index:1}
+.win{position:absolute;left:8%;top:28px;width:36%;height:18%;max-height:150px;border:6px solid var(--panel);border-radius:3px;box-shadow:0 2px 6px #0003,inset 0 0 0 1px #0002;
+  background:linear-gradient(90deg,#0000 calc(50% - 2px),var(--panel) calc(50% - 2px) calc(50% + 2px),#0000 calc(50% + 2px)),linear-gradient(180deg,#0000 calc(50% - 2px),var(--panel) calc(50% - 2px) calc(50% + 2px),#0000 calc(50% + 2px)),radial-gradient(circle at 75% 30%,#fff9 0 8%,#0000 9%),linear-gradient(180deg,#9fd0f0,#e4f3fb)}
+.win::before,.win::after{content:"";position:absolute;top:-10px;bottom:-14px;width:22%;background:repeating-linear-gradient(90deg,#c0574a 0 6px,#a9473b 6px 8px);border-radius:0 0 6px 6px;box-shadow:0 2px 4px #0003}
+.win::before{left:-16%}.win::after{right:-16%}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .win{background:linear-gradient(90deg,#0000 calc(50% - 2px),var(--panel) calc(50% - 2px) calc(50% + 2px),#0000 calc(50% + 2px)),linear-gradient(180deg,#0000 calc(50% - 2px),var(--panel) calc(50% - 2px) calc(50% + 2px),#0000 calc(50% + 2px)),radial-gradient(circle at 72% 32%,#f6efc8 0 7%,#0000 8%),radial-gradient(circle at 25% 70%,#fff8 0 1%,#0000 1.5%),radial-gradient(circle at 40% 20%,#fff8 0 1%,#0000 1.5%),linear-gradient(180deg,#0e1a33,#253a63)}}
+:root[data-theme=dark] .win{background:linear-gradient(90deg,#0000 calc(50% - 2px),var(--panel) calc(50% - 2px) calc(50% + 2px),#0000 calc(50% + 2px)),linear-gradient(180deg,#0000 calc(50% - 2px),var(--panel) calc(50% - 2px) calc(50% + 2px),#0000 calc(50% + 2px)),radial-gradient(circle at 72% 32%,#f6efc8 0 7%,#0000 8%),linear-gradient(180deg,#0e1a33,#253a63)}
 .rleft{display:flex;flex-direction:column;min-width:0;min-height:0}
 .rlbl{font-size:12px;font-weight:700;color:var(--mute);margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rlbl .note{font-weight:400;font-size:11px;margin-left:4px}
 #v-read .row{background:none;box-shadow:none;min-height:0;padding:0;border-radius:0}
@@ -294,7 +302,7 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 
   <section id="v-read" hidden>
     <!-- 栞：1つの部屋の絵。左上の壁に「読みたい」の棚、左下で棒人間が机で読書中、右に床から積み上がった積読の山 -->
-    <div class="room" id="room">
+    <div class="room" id="room"><div class="win" aria-hidden="true"></div>
       <div class="rleft">
         <div class="wallshelf"><div class="rlbl">読みたい <span class="note" id="wishN"></span></div><div id="wishGather"></div>
           <div class="row locked" id="wishRow" data-shelf="wish"></div><div class="wboard"></div></div>
@@ -1247,7 +1255,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v86';let updAt=0;
+const APP_V='hondana-v87';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
