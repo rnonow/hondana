@@ -249,6 +249,9 @@ body.dragging{overscroll-behavior:none;-webkit-user-select:none;user-select:none
 #readRow{--k:var(--kr);gap:4px;align-items:flex-end;overflow-x:auto;overflow-y:hidden;flex:none}
 .pilezone{display:flex;flex-direction:column;min-height:0}
 #tsunRow{flex:1;height:auto;--k:.85;padding:0 2px}#tsunRow .bk.pb{width:calc(var(--pw) * .9)}
+.rleft{justify-content:flex-end}.readzone{flex:none;margin-top:14px}
+.reader .bk.rd{opacity:0;transition:opacity .7s;pointer-events:none}.reader .bk.rd.on{opacity:1;pointer-events:auto}
+.rdn{position:absolute;left:calc(10px*var(--k));top:calc(18px*var(--k));font-size:11px;color:var(--mute)}
 </style>
 </head>
 <body>
@@ -502,6 +505,9 @@ $('#viewOff').onclick=()=>{VIEW=null;PAGE=0;renderShelf()};
 $('#pgBar').oninput=e=>{const i=+e.target.value;if(i===PAGE)return;const el=$('#case');PAGE=i;el.scrollTo({left:i*el.clientWidth,behavior:'auto'});$('#pgNo').textContent=`${PAGE+1} / ${PAGES}`;$('#pgPrev').disabled=PAGE<=0;$('#pgNext').disabled=PAGE>=PAGES-1};$('#pgNext').onclick=()=>goPage(PAGE+1);
 let RSZ;addEventListener('resize',()=>{clearTimeout(RSZ);RSZ=setTimeout(()=>{const w=$('#case').clientWidth;if(w&&Math.abs(w-PW)>4&&!D?.on)renderShelf()},200)});
 /* 読書中タブ：3つの棚が1画面に収まるように全体を縮める */
+/* 読書中が2冊以上なら、棒人間の持つ本を数秒ごとに切り替える */
+let RD_I=0;setInterval(()=>{if($('#v-read').hidden||D)return;const L=[...document.querySelectorAll('#readRow .bk.rd')];if(L.length<2)return;
+  RD_I=(RD_I+1)%L.length;L.forEach((x,i)=>x.classList.toggle('on',i===RD_I));const n=$('#readRow .rdn');if(n)n.textContent=`${RD_I+1}/${L.length}`},5000);
 function fitRead(){requestAnimationFrame(()=>{const v=$('#v-read');if(v.hidden)return;const t=$('#tabs'),r=$('#room');
   const lim=(getComputedStyle(t).position==='fixed'?t.getBoundingClientRect().top:innerHeight)-10;const h=Math.max(360,lim-r.getBoundingClientRect().top);
   r.style.setProperty('--rh',h+'px');const kw=Math.min(.8,Math.max(.4,h*.27/200));r.style.setProperty('--kw',kw.toFixed(3));
@@ -514,7 +520,7 @@ function renderShelf(){fitRead();sweepTray();renderSampleBar();renderSerDrag();
   renderPages(c);
   for(const [k,st,row,nEl,gEl,lab,emp] of [['reading','reading','#readRow','#readN','#readGather','読書中','「読書中」にした本がここに入ります'],['tsun','unread','#tsunRow','#tsunN','#tsunGather','積読','「積読」にした本が登録順にここに入ります'],['wish','wish','#wishRow','#wishN','#wishGather','読みたい','「読みたい」にした本がここに入ります']]){
     const L=listOf(k);for(const id of [...L]){const b=S.books[id];if(!b||b.status!==st){L.splice(L.indexOf(id),1);if(b&&!placeOf(id))bottomList().push(id)}}L.sort(byAdded);
-    $(row).innerHTML=(k==='tsun'?[...L].reverse().map(pileHTML):L.map(id=>k==='reading'?`<div class="reader">${READER}${bookHTML(id,'face')}</div>`:bookHTML(id,'spine'))).join('')||`<span class="empty">${emp}</span>`;if(k==='tsun')$(row).scrollTop=0;$(nEl).textContent=L.length?`${L.length}冊`:'';
+    $(row).innerHTML=(k==='tsun'?[...L].reverse().map(pileHTML):k==='reading'?(L.length?[`<div class="reader">${READER}${L.map((id,i)=>bookHTML(id,'face').replace('class="bk ',`class="bk rd${i===RD_I%L.length?' on':''} `)).join('')}${L.length>1?`<span class="rdn">${RD_I%L.length+1}/${L.length}</span>`:''}</div>`]:[]):L.map(id=>bookHTML(id,'spine'))).join('')||`<span class="empty">${emp}</span>`;if(k==='tsun')$(row).scrollTop=0;$(nEl).textContent=L.length?`${L.length}冊`:'';
     const out=Object.values(S.books).filter(b=>b.status===st&&!L.includes(b.id));
     if(k==='reading'){const y=String(new Date().getFullYear()),n=Object.values(S.books).filter(b=>b.status==='done'&&(b.doneAt||'').startsWith(y)).length;if(n)$(nEl).textContent+=`${L.length?'　':''}今年読んだ本 ${n}冊`}
     $(gEl).innerHTML=out.length?`<button data-gather="${k}">ほかの場所にある${lab}の本（${out.length}冊）もここに集める</button>`:''}
@@ -1241,7 +1247,7 @@ $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 addEventListener('hashchange',()=>{if(!location.hash.startsWith('#view='))show(location.hash.slice(1)||'shelf')});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 /* 新しい版の確認：起動時とアプリに戻った時に sw.js の版を見て、違えば更新する（データはそのまま） */
-const APP_V='hondana-v85';let updAt=0;
+const APP_V='hondana-v86';let updAt=0;
 async function checkUpdate(auto){if(location.protocol!=='https:'||Date.now()-updAt<60e3)return;updAt=Date.now();
   try{const t=await fetch('sw.js?c='+Date.now(),{cache:'no-store'}).then(r=>r.text());const v=(t.match(/const V = '([^']+)'/)||[])[1];if(!v||v===APP_V)return;
     try{await (await navigator.serviceWorker?.getRegistration())?.update()}catch(e){}
